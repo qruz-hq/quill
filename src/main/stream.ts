@@ -51,9 +51,17 @@ export class RealtimeStream {
       audio_format: 'pcm_16000',
       commit_strategy: 'manual'
     })
-    // Only pin the language when there is exactly one; otherwise let it detect.
-    const single = o.languages.filter((l) => l && l !== 'auto')
-    if (single.length === 1) q.set('language_code', single[0])
+    // Realtime takes a primary language plus secondaries, so unlike the batch
+    // endpoint there is no reason to fall back to detection when several are
+    // configured. Detection is what made French weak in the first place.
+    //
+    // secondary_languages MUST be repeated params: `a,b` and `["a"]` are both
+    // accepted by the handshake and then hang the socket rather than erroring.
+    const langs = o.languages.filter((l) => l && l !== 'auto')
+    if (langs.length) {
+      q.set('language_code', langs[0])
+      for (const l of langs.slice(1)) q.append('secondary_languages', l)
+    }
     // Drops filler words and false starts. scribe_v2 only — the API rejects it
     // on v1, which would take the whole connection down.
     if (o.noVerbatim && o.model.startsWith('scribe_v2')) q.set('no_verbatim', 'true')
