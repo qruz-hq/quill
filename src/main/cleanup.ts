@@ -148,6 +148,9 @@ export class Cleanup {
     return process.env.OPENAI_API_KEY?.trim() || null
   }
 
+  /** For other main-process callers that need to reach OpenAI. Never sent to the renderer. */
+  rawKey(): string | null { return this.key() }
+
   /** Masked for display — never return the real key to the renderer. */
   maskedKey(): string | null {
     const k = this.key()

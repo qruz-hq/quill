@@ -10,6 +10,7 @@ import { SnippetStore } from './snippets'
 import { TransformStore } from './transforms'
 import { DictationStore } from './dictations'
 import { Cleanup } from './cleanup'
+import { transcribeCloud, discard, audioSizeMB } from './transcribe'
 import { checkForUpdate, promptIfNewer } from './updates'
 
 /* Screenshot calibration: captures were 1372px wide on a 1728pt display (0.794x).
@@ -39,9 +40,9 @@ function log(msg: string): void {
   console.log(msg)
 }
 
-type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
+type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttModel: string; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
 const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json')
-const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
+const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttModel: 'gpt-4o-mini-transcribe', holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
 
 function loadSettings(): Settings {
   try {
@@ -392,6 +393,26 @@ app.whenReady().then(() => {
   stt.setLanguage(settings.languages)
   applyDuck()
   stt.setHoldKey(settings.holdKey)
+  stt.setEngine(settings.sttEngine)
+
+  // Cloud transcription: upload the recording, fall back to local on failure so
+  // a dropped connection never costs a dictation.
+  stt.audioHandler = async (path, seconds) => {
+    const key = cleanup.rawKey()
+    if (!key) {
+      log('[stt] cloud selected but no OpenAI key — falling back to local')
+      return null
+    }
+    const r = await transcribeCloud(path, key, settings.sttModel, settings.languages)
+    log(`[stt] cloud ${settings.sttModel}: ${r.ms}ms for ${seconds.toFixed(1)}s ` +
+        `(${audioSizeMB(path).toFixed(1)}MB)${r.error ? ` FAILED: ${r.error}` : ''}`)
+    if (r.error) {
+      broadcast('dictation:error', `Cloud transcription failed (${r.error}) — using the local model`)
+      return null                      // helper retries locally, keeps the file
+    }
+    discard(path)
+    return r.text
+  }
 
   models.on('progress', (p) => broadcast('models:progress', p))
   models.on('done', (d) => { broadcast('models:done', d); broadcast('models:list', models.list()) })
@@ -486,6 +507,7 @@ app.whenReady().then(() => {
     if (patch.languages !== undefined) stt.setLanguage(patch.languages)
     if (patch.duckEnabled !== undefined || patch.duckLevel !== undefined) applyDuck()
     if (patch.holdKey !== undefined) stt.setHoldKey(patch.holdKey)
+    if (patch.sttEngine !== undefined) stt.setEngine(patch.sttEngine)
     if (patch.toggleShortcut !== undefined || patch.padShortcut !== undefined || patch.noteShortcut !== undefined) {
       const r = applyShortcuts()
       if (r.failed.length) broadcast('shortcuts:failed', r.failed)

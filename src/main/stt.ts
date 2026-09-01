@@ -10,6 +10,7 @@ type Msg =
   | { type: 'ax'; trusted: boolean }
   | { type: 'hotkey'; intent: 'start' | 'stop'; latched?: boolean }
   | { type: 'hotkey-status'; installed: boolean; reason?: string }
+  | { type: 'audio'; path: string; seconds: number }
   | { type: 'partial' | 'final'; text: string }
   | { type: 'level'; value: number }
   | { type: 'error'; message: string }
@@ -20,6 +21,12 @@ type Msg =
  * cloud-backed sidecar and the rest of the app is unchanged.
  */
 export class SttEngine extends EventEmitter {
+  /**
+   * Set in cloud mode. Receives the recorded WAV and resolves with the
+   * transcript, or null to fall back to transcribing locally.
+   */
+  audioHandler: ((path: string, seconds: number) => Promise<string | null>) | null = null
+
   private proc: ChildProcessWithoutNullStreams | null = null
   private buffer = ''
   private pendingFinal: ((text: string) => void) | null = null
@@ -103,6 +110,9 @@ export class SttEngine extends EventEmitter {
       case 'level':
         this.emit('level', msg.value)
         break
+      case 'audio':
+        void this.handleAudio(msg.path, msg.seconds)
+        break
       case 'final':
         this.emit('final', msg.text)
         this.pendingFinal?.(msg.text)
@@ -131,6 +141,25 @@ export class SttEngine extends EventEmitter {
     this.ensureProcess()
   }
 
+  /** Cloud path: upload, and if that fails ask the helper to do it locally. */
+  private async handleAudio(path: string, seconds: number): Promise<void> {
+    if (!this.audioHandler) { this.emit('final', ''); this.pendingFinal?.(''); this.pendingFinal = null; return }
+    const text = await this.audioHandler(path, seconds)
+    if (text === null) {
+      // Fallback — the helper still has the file and will emit 'final' itself.
+      this.proc?.stdin.write(`transcribe-file ${path}\n`)
+      return
+    }
+    this.emit('final', text)
+    this.pendingFinal?.(text)
+    this.pendingFinal = null
+  }
+
+  /** 'local' transcribes in the helper; 'cloud' hands the audio to audioHandler. */
+  setEngine(mode: 'local' | 'cloud'): void {
+    this.ensureProcess().stdin.write(`engine ${mode}\n`)
+  }
+
   start(): void {
     const proc = this.ensureProcess()
     proc.stdin.write('start\n')
@@ -143,7 +172,7 @@ export class SttEngine extends EventEmitter {
       const timer = setTimeout(() => {
         this.pendingFinal = null
         resolve('')
-      }, 4000)
+      }, 45_000)
       this.pendingFinal = (text) => {
         clearTimeout(timer)
         resolve(text)

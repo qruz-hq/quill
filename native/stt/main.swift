@@ -205,6 +205,23 @@ final class Recognizer {
             return
         }
         emit(["type": "transcribing"])
+
+        // Cloud mode: write the WAV and hand it over. The app uploads it and
+        // can ask us to transcribe the same file locally if that fails, so the
+        // recording is never lost to a network problem.
+        if sttEngine == "cloud" {
+            let wav = FileManager.default.temporaryDirectory
+                .appendingPathComponent("quill-\(UUID().uuidString).wav")
+            if writeWav(audio, to: wav) {
+                logLine("cloud mode: wrote \(String(format: "%.1f", seconds))s to \(wav.lastPathComponent)")
+                emit(["type": "audio", "path": wav.path, "seconds": seconds])
+            } else {
+                emit(["type": "error", "message": "could not write audio file"])
+                emit(["type": "final", "text": ""])
+            }
+            return
+        }
+
         Task.detached { [weak self] in
             guard let self else { return }
             let text = self.transcribe(audio) ?? ""
@@ -311,7 +328,29 @@ final class Recognizer {
         return (code, p)
     }
 
-    private func writeWav(_ audio: [Float], to url: URL) -> Bool {
+    /// Runs whisper over a WAV already on disk — used when a cloud upload fails.
+    func transcribeExisting(_ path: String) -> String? {
+        guard !modelPath.isEmpty, FileManager.default.fileExists(atPath: modelPath) else { return nil }
+        let dir = whisperDir
+        let proc = Process()
+        proc.executableURL = dir.appendingPathComponent("whisper-cli")
+        proc.arguments = ["-m", modelPath, "-f", path, "-nt", "--no-prints", "-t", "8",
+                          "-l", languages.first ?? "auto"]
+        var env = ProcessInfo.processInfo.environment
+        env["DYLD_LIBRARY_PATH"] = dir.path
+        proc.environment = env
+        let pipe = Pipe(); proc.standardOutput = pipe; proc.standardError = Pipe()
+        do { try proc.run() } catch { return nil }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        proc.waitUntilExit()
+        return (String(data: data, encoding: .utf8) ?? "")
+            .split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("[") }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func writeWav(_ audio: [Float], to url: URL) -> Bool {
         var d = Data()
         let sr: UInt32 = 16_000, bytes = UInt32(audio.count * 2)
         func le<T: FixedWidthInteger>(_ v: T) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
@@ -660,6 +699,9 @@ nonisolated(unsafe) var modelPath = ""
 /// several means we detect first and snap the result to this set; "auto" means
 /// let whisper pick from all 99.
 nonisolated(unsafe) var languages = ["en"]
+/// "local" runs whisper here; "cloud" hands the audio file to the app to upload.
+/// Named sttEngine because Recognizer already has an `engine` (the AVAudioEngine).
+nonisolated(unsafe) var sttEngine = "local"
 
 let recognizer = Recognizer()
 
@@ -708,6 +750,18 @@ DispatchQueue.global(qos: .userInitiated).async {
                     Ducker.level = max(0, min(1, pct / 100))
                 }
                 logLine("duck: enabled=\(Ducker.enabled) level=\(Ducker.level)")
+            }
+            if line.hasPrefix("engine ") {
+                sttEngine = String(line.dropFirst("engine ".count)).trimmingCharacters(in: .whitespaces)
+                logLine("engine: \(sttEngine)")
+            }
+            if line.hasPrefix("transcribe-file ") {
+                let path = String(line.dropFirst("transcribe-file ".count)).trimmingCharacters(in: .whitespaces)
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let text = recognizer.transcribeExisting(path) ?? ""
+                    logLine("local fallback: \"\(text)\"")
+                    emit(["type": "final", "text": text])
+                }
             }
             if line.hasPrefix("lang ") {
                 let raw = String(line.dropFirst("lang ".count)).trimmingCharacters(in: .whitespaces)

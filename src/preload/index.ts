@@ -4,6 +4,7 @@ type Prefs = {
   model: string; languages: string[]
   duckEnabled: boolean; duckLevel: number
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
+  sttEngine: 'local' | 'cloud'; sttModel: string
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 

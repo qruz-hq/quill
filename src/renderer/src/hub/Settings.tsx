@@ -7,6 +7,7 @@ type Prefs = {
   model: string; languages: string[]
   duckEnabled: boolean; duckLevel: number
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
+  sttEngine: 'local' | 'cloud'; sttModel: string
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 
@@ -116,7 +117,14 @@ export default function Settings({ onClose }: { onClose: () => void }): React.JS
             <Languages prefs={prefs} onSet={(codes) => void update({ languages: codes })} />
           )}
 
-          {pane === 'models' && <Models prefs={prefs} onSelect={(id) => void update({ model: id })} />}
+          {pane === 'models' && (
+            <Models
+              prefs={prefs}
+              onSelect={(id) => void update({ model: id })}
+              onEngine={(m) => update({ sttEngine: m })}
+              onSttModel={(m) => update({ sttModel: m })}
+            />
+          )}
 
           {pane === 'shortcuts' && <Shortcuts prefs={prefs} update={update} />}
 
@@ -497,8 +505,11 @@ function fmt(bytes: number): string {
   return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`
 }
 
-function Models({ prefs, onSelect }: {
-  prefs: Prefs | null; onSelect: (id: string) => void
+function Models({ prefs, onSelect, onEngine, onSttModel }: {
+  prefs: Prefs | null
+  onSelect: (id: string) => void
+  onEngine: (m: 'local' | 'cloud') => Promise<void>
+  onSttModel: (m: string) => Promise<void>
 }): React.JSX.Element {
   const [list, setList] = useState<ModelRow[]>([])
   const [progress, setProgress] = useState<Record<string, number>>({})
@@ -534,7 +545,47 @@ function Models({ prefs, onSelect }: {
   return (
     <>
       <h2 className="sheet__title">Speech models</h2>
-      {!anyInstalled && (
+      <div className="rows" style={{ marginBottom: 16 }}>
+        <Row
+          title="Where transcription runs"
+          desc={
+            prefs?.sttEngine === 'cloud'
+              ? 'Audio is uploaded to OpenAI. No model is loaded, so Quill uses almost no memory.'
+              : 'Runs on this Mac. Audio never leaves it, but the model stays in memory while in use.'
+          }
+        >
+          <select
+            className="modelinput"
+            value={prefs?.sttEngine ?? 'local'}
+            onChange={(e) => void onEngine(e.target.value as 'local' | 'cloud')}
+          >
+            <option value="local">On this Mac</option>
+            <option value="cloud">OpenAI (cloud)</option>
+          </select>
+        </Row>
+        {prefs?.sttEngine === 'cloud' && (
+          <Row title="Transcription model" desc="mini is a third of the price and was indistinguishable in testing.">
+            <select
+              className="modelinput"
+              value={prefs?.sttModel ?? 'gpt-4o-mini-transcribe'}
+              onChange={(e) => void onSttModel(e.target.value)}
+            >
+              <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe — $0.003/min</option>
+              <option value="gpt-4o-transcribe">gpt-4o-transcribe — $0.006/min</option>
+              <option value="whisper-1">whisper-1 — $0.006/min</option>
+            </select>
+          </Row>
+        )}
+      </div>
+
+      {prefs?.sttEngine === 'cloud' && (
+        <p className="sheet__note sheet__note--tight">
+          Your audio is sent to OpenAI. A local model is still used if the upload fails,
+          so keep one installed below.
+        </p>
+      )}
+
+      {prefs?.sttEngine === 'local' && !anyInstalled && (
         <p className="sheet__warn">
           No model installed yet — dictation won’t work until you download one. Base is the one to pick.
         </p>
