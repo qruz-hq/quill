@@ -1,6 +1,6 @@
 {
   "name": "quill",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Local-first dictation for macOS",
   "main": "./out/main/index.js",
   "author": "",
@@ -11,9 +11,10 @@
     "start": "electron-vite preview",
     "stt:build": "swiftc -O -framework Speech -framework AVFoundation -framework CoreAudio -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker native/stt/Info.plist -o /tmp/flow-stt native/stt/main.swift && rm -rf resources/FlowSTT.app && mkdir -p resources/FlowSTT.app/Contents/MacOS && cp native/stt/Info.plist resources/FlowSTT.app/Contents/Info.plist && cp /tmp/flow-stt resources/FlowSTT.app/Contents/MacOS/flow-stt && codesign --force --deep --sign - --identifier studio.saudad.quill.stt resources/FlowSTT.app",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "package": "electron-vite build && electron-builder --mac --dir",
-    "release": "electron-vite build && electron-builder --mac --publish always",
-    "dist": "electron-vite build && electron-builder --mac"
+    "package": "bun run whisper:fixrpath && electron-vite build && electron-builder --mac --dir",
+    "release": "bun run whisper:fixrpath && electron-vite build && electron-builder --mac --publish always",
+    "dist": "bun run whisper:fixrpath && electron-vite build && electron-builder --mac",
+    "whisper:fixrpath": "cd resources/whisper && for f in whisper-cli *.dylib; do o=$(otool -l \"$f\" | grep -A2 LC_RPATH | grep 'path ' | awk '{print $2}' | head -1); [ -n \"$o\" ] && [ \"$o\" != '@loader_path' ] && install_name_tool -delete_rpath \"$o\" \"$f\" 2>/dev/null; install_name_tool -add_rpath '@loader_path' \"$f\" 2>/dev/null; done; codesign --force --sign - whisper-cli *.dylib 2>/dev/null; true"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"

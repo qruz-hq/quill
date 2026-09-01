@@ -22,9 +22,11 @@ const NAV: { key: Pane; label: string; Icon: typeof GearIcon }[] = [
 
 export default function Settings({ onClose }: { onClose: () => void }): React.JSX.Element {
   const [pane, setPane] = useState<Pane>('shortcuts')
+  const [version, setVersion] = useState('')
   const [prefs, setPrefs] = useState<Prefs | null>(null)
 
   useEffect(() => { void window.flow.settings.get().then(setPrefs) }, [])
+  useEffect(() => { void window.flow.updates.check().then((u) => setVersion(u.current)) }, [])
 
   const update = async (patch: Partial<Prefs>): Promise<void> => {
     setPrefs((p) => (p ? { ...p, ...patch } : p))   // optimistic
@@ -53,7 +55,7 @@ export default function Settings({ onClose }: { onClose: () => void }): React.JS
               <span>{label}</span>
             </button>
           ))}
-          <div className="sheet__version">Quill v0.1.0</div>
+          <div className="sheet__version">Quill v{version || "…"}</div>
         </nav>
 
         <div className="sheet__body">
