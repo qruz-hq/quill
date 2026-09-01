@@ -21,15 +21,34 @@ mac:
   icon: build/icon.icns
   category: public.app-category.productivity
   target:
-    - target: dir
+    # dmg for people to install, zip because electron-updater reads that feed.
+    - target: dmg
       arch: arm64
-  # Ad-hoc signing is enough for local use; TCC needs a stable identity.
-  identity: null
+    - target: zip
+      arch: arm64
+  # Ad-hoc. Without a Developer ID the app is still Gatekeeper-blocked on other
+  # Macs, but ad-hoc at least keeps it launchable once quarantine is cleared.
+  identity: "-"
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  artifactName: "${productName}-${version}-${arch}.${ext}"
   extendInfo:
-    NSMicrophoneUsageDescription: Flow needs the microphone to turn your speech into text.
-    NSSpeechRecognitionUsageDescription: Flow uses on-device speech recognition to transcribe your dictation.
+    NSMicrophoneUsageDescription: Quill needs the microphone to turn your speech into text.
+    NSSpeechRecognitionUsageDescription: Quill uses on-device speech recognition to transcribe your dictation.
     LSUIElement: false
 
 publish:
   provider: github
   # owner/repo are read from the git remote when publishing
+
+dmg:
+  title: "${productName} ${version}"
+  contents:
+    - x: 140
+      y: 180
+      type: file
+    - x: 400
+      y: 180
+      type: link
+      path: /Applications

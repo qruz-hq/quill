@@ -12,3 +12,6 @@ resources/FlowSTT.app/
 *.pem
 *.key
 !resources/**/*.key
+
+# Local toolchain scratch (cmake tarball, whisper.cpp checkout)
+.build/

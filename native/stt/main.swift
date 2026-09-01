@@ -181,7 +181,19 @@ final class Recognizer {
 
         samplesLock.lock(); let audio = samples; samples.removeAll(); samplesLock.unlock()
         let seconds = Double(audio.count) / 16_000
-        logLine("=== recording stopped (\(String(format: "%.1f", seconds))s captured) ===")
+
+        // A mic-denied app is handed digital silence, not an error, so the only
+        // way to tell "permission missing" from "you said nothing" is the signal.
+        var peak: Float = 0
+        for v in audio { peak = max(peak, abs(v)) }
+        logLine("=== recording stopped (\(String(format: "%.1f", seconds))s, peak \(String(format: "%.4f", peak))) ===")
+
+        if peak < 0.0005 && seconds > 0.5 {
+            logLine("audio is digital silence — microphone permission is almost certainly missing")
+            emit(["type": "error", "message": "No audio from the microphone. Allow Quill under Privacy & Security > Microphone."])
+            emit(["type": "final", "text": ""])
+            return
+        }
 
         // Too short to contain speech.
         guard seconds > 0.3 else { emit(["type": "final", "text": ""]); return }

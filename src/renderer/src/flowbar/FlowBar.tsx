@@ -42,6 +42,7 @@ export default function FlowBar(): React.JSX.Element {
   useEffect(() => {
     const offError = window.flow.dictation.onError((msg) => {
       setError(msg)
+      setStage('idle')          // an error must also stop the spinner
       setMode('expanded')
       setTimeout(() => setError(null), 6000)
     })

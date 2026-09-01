@@ -83,7 +83,16 @@ async function stopDictation(): Promise<void> {
   const tStop = Date.now()
   const raw = await stt.stop()
   const tTranscribed = Date.now()
-  if (!raw) { voiceNoteMode = false; return }
+
+  // A silent recording used to return here, skipping the stage reset below and
+  // leaving the bar spinning for good.
+  if (!raw.trim()) {
+    voiceNoteMode = false
+    broadcast('dictation:error', 'Nothing was heard — is the microphone allowed?')
+    broadcast('dictation:stage', 'idle')
+    log(`[timing] transcribe ${tTranscribed - tStop}ms | EMPTY transcript`)
+    return
+  }
 
   // Spoken shortcuts expand before anything is typed.
   // Optional cloud cleanup. Any failure returns the raw text, so a bad key or
