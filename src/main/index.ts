@@ -10,7 +10,9 @@ import { SnippetStore } from './snippets'
 import { TransformStore } from './transforms'
 import { DictationStore } from './dictations'
 import { Cleanup } from './cleanup'
-import { transcribeCloud, discard, audioSizeMB } from './transcribe'
+import { transcribeCloud, discard, audioSizeMB, type Provider } from './transcribe'
+import { RealtimeStream } from './stream'
+import { Secrets } from './secrets'
 import { checkForUpdate, promptIfNewer } from './updates'
 
 /* Screenshot calibration: captures were 1372px wide on a 1728pt display (0.794x).
@@ -40,9 +42,9 @@ function log(msg: string): void {
   console.log(msg)
 }
 
-type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttModel: string; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
+type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
 const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json')
-const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttModel: 'gpt-4o-mini-transcribe', holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
+const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
 
 function loadSettings(): Settings {
   try {
@@ -68,12 +70,49 @@ async function startVoiceNote(): Promise<void> {
   await startDictation()
 }
 
+/**
+ * Live upload for the current dictation, when ElevenLabs streaming is on.
+ * Null whenever we are on the batch path, which is every other configuration.
+ */
+let activeStream: RealtimeStream | null = null
+
+/** Streaming only exists for ElevenLabs realtime, and only with a key. */
+function streamingWanted(): boolean {
+  return (
+    settings.sttStreaming &&
+    settings.sttEngine === 'cloud' &&
+    settings.sttProvider === 'elevenlabs' &&
+    !!elevenKey.get()
+  )
+}
+
 async function startDictation(): Promise<void> {
   if (recording) return
   recording = true
   recordingStartedAt = Date.now()
   broadcast('dictation:state', 'recording')
   stt.start()
+
+  // Opened after start(), not before: the handshake costs a few hundred ms and
+  // the user is already talking. Chunks captured meanwhile buffer in the stream
+  // and flush once it opens.
+  if (streamingWanted()) {
+    const s = new RealtimeStream()
+    activeStream = s
+    stt.chunkHandler = (b64) => s.push(b64)
+    const ok = await s.open({
+      key: elevenKey.get()!,
+      model: 'scribe_v2_realtime',
+      languages: settings.languages,
+      noVerbatim: settings.sttNoVerbatim
+    })
+    if (!ok) {
+      log(`[stream] connect failed (${s.error}) — batch upload will handle it`)
+      activeStream = null
+      stt.chunkHandler = null
+      s.close()
+    }
+  }
 }
 
 async function stopDictation(): Promise<void> {
@@ -221,6 +260,7 @@ const snippets = new SnippetStore()
 const transforms = new TransformStore()
 const dictations = new DictationStore()
 const cleanup = new Cleanup()
+const elevenKey = new Secrets('elevenlabs', 'ELEVENLABS_API_KEY')
 
 function createHub(): BrowserWindow {
   const win = new BrowserWindow({
@@ -342,7 +382,16 @@ app.whenReady().then(() => {
   /* ---- Dictation ---- */
   ipcMain.handle('dictation:start', async () => startDictation())
   ipcMain.handle('dictation:stop', async () => stopDictation())
-  ipcMain.handle('dictation:cancel', async () => stt.cancel())
+  ipcMain.handle('dictation:cancel', async () => {
+    // Drop the live socket too, or a cancelled dictation leaves it open and
+    // the next one starts a second stream alongside it.
+    if (activeStream) {
+      activeStream.close()
+      activeStream = null
+      stt.chunkHandler = null
+    }
+    return stt.cancel()
+  })
 
   stt.on('partial', (text) => broadcast('dictation:partial', text))
   stt.on('transcribing', () => broadcast('dictation:stage', 'transcribing'))
@@ -394,17 +443,38 @@ app.whenReady().then(() => {
   applyDuck()
   stt.setHoldKey(settings.holdKey)
   stt.setEngine(settings.sttEngine)
+  stt.setStreaming(streamingWanted())
 
   // Cloud transcription: upload the recording, fall back to local on failure so
   // a dropped connection never costs a dictation.
   stt.audioHandler = async (path, seconds) => {
-    const key = cleanup.rawKey()
+    // Streaming path: the audio is already uploaded, so this is just the commit.
+    if (activeStream) {
+      const s = activeStream
+      activeStream = null
+      stt.chunkHandler = null
+      const tCommit = Date.now()
+      const streamed = await s.finish()
+      log(`[stream] commit ${Date.now() - tCommit}ms for ${seconds.toFixed(1)}s` +
+          `${streamed ? '' : ` EMPTY${s.error ? ` (${s.error})` : ''}`}`)
+      if (streamed) {
+        discard(path)
+        return streamed
+      }
+      // Nothing came back — fall through to the batch upload, which still has
+      // the WAV, so a dead socket costs latency rather than the dictation.
+      broadcast('dictation:error', 'Live transcription came back empty — retrying the upload')
+    }
+
+    const provider = settings.sttProvider
+    const key = provider === 'elevenlabs' ? elevenKey.get() : cleanup.rawKey()
     if (!key) {
-      log('[stt] cloud selected but no OpenAI key — falling back to local')
+      log(`[stt] cloud selected but no ${provider} key — falling back to local`)
+      broadcast('dictation:error', `No ${provider === 'elevenlabs' ? 'ElevenLabs' : 'OpenAI'} key — using the local model`)
       return null
     }
-    const r = await transcribeCloud(path, key, settings.sttModel, settings.languages)
-    log(`[stt] cloud ${settings.sttModel}: ${r.ms}ms for ${seconds.toFixed(1)}s ` +
+    const r = await transcribeCloud(path, key, settings.sttModel, settings.languages, provider, settings.sttNoVerbatim)
+    log(`[stt] ${provider}/${settings.sttModel}: ${r.ms}ms for ${seconds.toFixed(1)}s ` +
         `(${audioSizeMB(path).toFixed(1)}MB)${r.error ? ` FAILED: ${r.error}` : ''}`)
     if (r.error) {
       broadcast('dictation:error', `Cloud transcription failed (${r.error}) — using the local model`)
@@ -451,6 +521,14 @@ app.whenReady().then(() => {
   ipcMain.handle('cleanup:clearKey', () => { cleanup.clearKey(); return { hasKey: false } })
   ipcMain.handle('cleanup:verify', (_e, model: string) => cleanup.verify(model))
   ipcMain.handle('cleanup:models', () => cleanup.listModels())
+
+  /* ---- ElevenLabs key ---- */
+  ipcMain.handle('eleven:status', () => ({ hasKey: elevenKey.has(), masked: elevenKey.masked() }))
+  ipcMain.handle('eleven:setKey', (_e, k: string) => {
+    try { elevenKey.set(k); return { ok: true, masked: elevenKey.masked() } }
+    catch (err) { return { ok: false, message: (err as Error).message } }
+  })
+  ipcMain.handle('eleven:clearKey', () => { elevenKey.clear(); return { hasKey: false } })
 
   // Just the local OS user — there is no account system in this app.
   ipcMain.handle('system:user', () => {
@@ -508,6 +586,8 @@ app.whenReady().then(() => {
     if (patch.duckEnabled !== undefined || patch.duckLevel !== undefined) applyDuck()
     if (patch.holdKey !== undefined) stt.setHoldKey(patch.holdKey)
     if (patch.sttEngine !== undefined) stt.setEngine(patch.sttEngine)
+    // Provider, key and engine all gate streaming, so re-evaluate on any change.
+    stt.setStreaming(streamingWanted())
     if (patch.toggleShortcut !== undefined || patch.padShortcut !== undefined || patch.noteShortcut !== undefined) {
       const r = applyShortcuts()
       if (r.failed.length) broadcast('shortcuts:failed', r.failed)

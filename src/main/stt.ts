@@ -11,6 +11,7 @@ type Msg =
   | { type: 'hotkey'; intent: 'start' | 'stop'; latched?: boolean }
   | { type: 'hotkey-status'; installed: boolean; reason?: string }
   | { type: 'audio'; path: string; seconds: number }
+  | { type: 'chunk'; b64: string }
   | { type: 'partial' | 'final'; text: string }
   | { type: 'level'; value: number }
   | { type: 'error'; message: string }
@@ -26,6 +27,8 @@ export class SttEngine extends EventEmitter {
    * transcript, or null to fall back to transcribing locally.
    */
   audioHandler: ((path: string, seconds: number) => Promise<string | null>) | null = null
+  /** Streaming mode: raw PCM16 arriving while the user is still speaking. */
+  chunkHandler: ((b64: string) => void) | null = null
 
   private proc: ChildProcessWithoutNullStreams | null = null
   private buffer = ''
@@ -113,6 +116,9 @@ export class SttEngine extends EventEmitter {
       case 'audio':
         void this.handleAudio(msg.path, msg.seconds)
         break
+      case 'chunk':
+        this.chunkHandler?.(msg.b64)
+        break
       case 'final':
         this.emit('final', msg.text)
         this.pendingFinal?.(msg.text)
@@ -158,6 +164,11 @@ export class SttEngine extends EventEmitter {
   /** 'local' transcribes in the helper; 'cloud' hands the audio to audioHandler. */
   setEngine(mode: 'local' | 'cloud'): void {
     this.ensureProcess().stdin.write(`engine ${mode}\n`)
+  }
+
+  /** Streaming ships PCM during capture instead of only a WAV at the end. */
+  setStreaming(on: boolean): void {
+    this.ensureProcess().stdin.write(`stream ${on ? 'on' : 'off'}\n`)
   }
 
   start(): void {

@@ -1,6 +1,6 @@
 {
   "name": "quill",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Local-first dictation for macOS",
   "main": "./out/main/index.js",
   "author": "",
@@ -17,7 +17,8 @@
     "whisper:fixrpath": "cd resources/whisper && for f in whisper-cli *.dylib; do o=$(otool -l \"$f\" | grep -A2 LC_RPATH | grep 'path ' | awk '{print $2}' | head -1); [ -n \"$o\" ] && [ \"$o\" != '@loader_path' ] && install_name_tool -delete_rpath \"$o\" \"$f\" 2>/dev/null; install_name_tool -add_rpath '@loader_path' \"$f\" 2>/dev/null; done; codesign --force --sign - whisper-cli *.dylib 2>/dev/null; true"
   },
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
@@ -25,6 +26,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.1",
     "electron-builder": "^26.15.3",

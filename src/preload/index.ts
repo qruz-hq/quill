@@ -4,7 +4,8 @@ type Prefs = {
   model: string; languages: string[]
   duckEnabled: boolean; duckLevel: number
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
-  sttEngine: 'local' | 'cloud'; sttModel: string
+  sttEngine: 'local' | 'cloud'; sttProvider: 'openai' | 'elevenlabs'; sttModel: string
+  sttStreaming: boolean; sttNoVerbatim: boolean
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 
@@ -38,6 +39,11 @@ const api = {
       ipcRenderer.invoke('notes:update', id, patch),
     remove: (id: string) => ipcRenderer.invoke('notes:remove', id),
     onChanged: (cb: (n: unknown[]) => void) => sub('notes:changed', cb)
+  },
+  eleven: {
+    status: (): Promise<{ hasKey: boolean; masked: string | null }> => ipcRenderer.invoke('eleven:status'),
+    setKey: (k: string) => ipcRenderer.invoke('eleven:setKey', k),
+    clearKey: () => ipcRenderer.invoke('eleven:clearKey')
   },
   cleanup: {
     status: (): Promise<{ hasKey: boolean; masked: string | null }> => ipcRenderer.invoke('cleanup:status'),

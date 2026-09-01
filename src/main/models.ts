@@ -5,7 +5,11 @@ import { EventEmitter } from 'events'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 
-export type ModelId = 'tiny.en' | 'base.en' | 'small.en' | 'base' | 'small' | 'large-v3-turbo'
+export type ModelId =
+  | 'tiny.en' | 'base.en' | 'small.en'
+  | 'base' | 'small'
+  | 'tiny.en-q5_1' | 'base.en-q5_1' | 'small-q5_1'
+  | 'medium-q5_0' | 'large-v3-turbo-q5_0' | 'large-v3-turbo'
 
 export type ModelInfo = {
   id: ModelId
@@ -15,16 +19,29 @@ export type ModelInfo = {
   wer: string
   note: string
   multilingual?: boolean
+  /** Quantised builds trade a little accuracy for a large drop in memory. */
+  quantised?: boolean
 }
 
-/** Sizes are the real ggml file sizes; WER figures are from our own benchmark. */
+/**
+ * Sizes are exact, taken from the upstream repository, because the install
+ * check compares against them — a rounded figure lets a truncated download
+ * pass as complete.
+ *
+ * Quantised builds matter more than they look: large-v3-turbo-q5_0 is a third
+ * the size of the full turbo model and measurably better at French than small,
+ * for about 86MB more memory.
+ */
 export const CATALOG: ModelInfo[] = [
-  { id: 'tiny.en',        label: 'Tiny',   bytes:   77_691_713, wer: '4.8%', note: 'Fastest. Fine for short notes.' },
-  { id: 'base.en',        label: 'Base',   bytes:  147_951_465, wer: '2.9%', note: 'Recommended. Best accuracy per megabyte.' },
-  { id: 'small.en',       label: 'Small',  bytes:  487_601_967, wer: '2.9%', note: 'No better than Base here, but steadier on long audio.' },
-  { id: 'base',           label: 'Base (multilingual)',  bytes:  147_951_465, wer: '—', note: 'Same size as Base, but understands ~99 languages.', multilingual: true },
-  { id: 'small',          label: 'Small (multilingual)', bytes:  487_601_967, wer: '—', note: 'Noticeably better than Base outside English.', multilingual: true },
-  { id: 'large-v3-turbo', label: 'Large',  bytes: 1_624_555_275, wer: '—',   note: 'Most accurate, and handles other languages.', multilingual: true }
+  { id: 'tiny.en-q5_1',        label: 'Tiny (compressed)',   bytes:    32_166_155, wer: '~5%',  note: 'Smallest possible. Fine for short notes.', quantised: true },
+  { id: 'base.en-q5_1',        label: 'Base (compressed)',   bytes:    59_721_011, wer: '~3%',  note: 'Base accuracy at a third of the memory.', quantised: true },
+  { id: 'tiny.en',             label: 'Tiny',                bytes:    77_704_715, wer: '4.8%', note: 'Fastest. English only.' },
+  { id: 'base.en',             label: 'Base',                bytes:   147_964_211, wer: '2.9%', note: 'Good accuracy per megabyte. English only.' },
+  { id: 'small-q5_1',          label: 'Small (compressed)',  bytes:   190_085_487, wer: '—',    note: 'Small accuracy for 190MB instead of 488MB.', multilingual: true, quantised: true },
+  { id: 'small',               label: 'Small',               bytes:   487_601_967, wer: '—',    note: 'Understands ~99 languages.', multilingual: true },
+  { id: 'medium-q5_0',         label: 'Medium (compressed)', bytes:   539_212_467, wer: '—',    note: 'Stronger than Small outside English.', multilingual: true, quantised: true },
+  { id: 'large-v3-turbo-q5_0', label: 'Turbo (compressed)',  bytes:   574_041_195, wer: '—',    note: 'Best non-English accuracy per megabyte. Recommended for French.', multilingual: true, quantised: true },
+  { id: 'large-v3-turbo',      label: 'Turbo',               bytes: 1_624_555_275, wer: '—',    note: 'Most accurate, and the heaviest on memory.', multilingual: true }
 ]
 
 const BASE_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main'

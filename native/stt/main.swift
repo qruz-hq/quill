@@ -70,6 +70,11 @@ final class Recognizer {
     private var partialInFlight = false
     private static let partialInterval: TimeInterval = 1.5
 
+    /// Streaming mode ships audio as it arrives instead of transcribing here.
+    private var sentSamples = 0
+    private var chunkTimer: DispatchSourceTimer?
+    private static let chunkInterval: TimeInterval = 0.5
+
     private let target = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                        sampleRate: 16_000, channels: 1, interleaved: false)!
 
@@ -105,7 +110,9 @@ final class Recognizer {
             try engine.start()
             running = true
             Ducker.duck()
-            startPartials()
+            // Local partials burn CPU re-decoding the same audio; when the
+            // cloud is already transcribing live there is nothing to add.
+            if sttStreaming { startChunks() } else { startPartials() }
             emit(["type": "started"])
             logLine("=== recording started ===")
         } catch {
@@ -167,6 +174,40 @@ final class Recognizer {
         partialTimer = timer
     }
 
+    private func startChunks() {
+        sentSamples = 0
+        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        timer.schedule(deadline: .now() + Recognizer.chunkInterval,
+                       repeating: Recognizer.chunkInterval)
+        timer.setEventHandler { [weak self] in
+            guard let self, self.running else { return }
+            self.flushChunk()
+        }
+        timer.resume()
+        chunkTimer = timer
+    }
+
+    private func stopChunks() {
+        chunkTimer?.cancel()
+        chunkTimer = nil
+    }
+
+    /// Emits everything captured since the last flush as base64 PCM16.
+    private func flushChunk() {
+        samplesLock.lock()
+        let slice = sentSamples < samples.count ? Array(samples[sentSamples...]) : []
+        sentSamples = samples.count
+        samplesLock.unlock()
+        guard !slice.isEmpty else { return }
+
+        var pcm = Data(capacity: slice.count * 2)
+        for f in slice {
+            var s = Int16(max(-1, min(1, f)) * 32767)
+            withUnsafeBytes(of: &s) { pcm.append(contentsOf: $0) }
+        }
+        emit(["type": "chunk", "b64": pcm.base64EncodedString()])
+    }
+
     private func stopPartials() {
         partialTimer?.cancel()
         partialTimer = nil
@@ -178,6 +219,7 @@ final class Recognizer {
         stopPartials()
         Ducker.restore()
         removeTap()
+        if sttStreaming { stopChunks(); flushChunk() }
 
         samplesLock.lock(); let audio = samples; samples.removeAll(); samplesLock.unlock()
         let seconds = Double(audio.count) / 16_000
@@ -702,6 +744,8 @@ nonisolated(unsafe) var languages = ["en"]
 /// "local" runs whisper here; "cloud" hands the audio file to the app to upload.
 /// Named sttEngine because Recognizer already has an `engine` (the AVAudioEngine).
 nonisolated(unsafe) var sttEngine = "local"
+/// Ship PCM to the app while recording so the upload finishes with the speech.
+nonisolated(unsafe) var sttStreaming = false
 
 let recognizer = Recognizer()
 
@@ -754,6 +798,11 @@ DispatchQueue.global(qos: .userInitiated).async {
             if line.hasPrefix("engine ") {
                 sttEngine = String(line.dropFirst("engine ".count)).trimmingCharacters(in: .whitespaces)
                 logLine("engine: \(sttEngine)")
+                continue
+            }
+            if line.hasPrefix("stream ") {
+                sttStreaming = line.hasSuffix("on")
+                logLine("streaming: \(sttStreaming)")
             }
             if line.hasPrefix("transcribe-file ") {
                 let path = String(line.dropFirst("transcribe-file ".count)).trimmingCharacters(in: .whitespaces)

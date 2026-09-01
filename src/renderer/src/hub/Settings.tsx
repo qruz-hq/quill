@@ -7,7 +7,8 @@ type Prefs = {
   model: string; languages: string[]
   duckEnabled: boolean; duckLevel: number
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
-  sttEngine: 'local' | 'cloud'; sttModel: string
+  sttEngine: 'local' | 'cloud'; sttProvider: 'openai' | 'elevenlabs'; sttModel: string
+  sttStreaming: boolean; sttNoVerbatim: boolean
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 
@@ -123,6 +124,8 @@ export default function Settings({ onClose }: { onClose: () => void }): React.JS
               onSelect={(id) => void update({ model: id })}
               onEngine={(m) => update({ sttEngine: m })}
               onSttModel={(m) => update({ sttModel: m })}
+              onProvider={(p, m) => update({ sttProvider: p, sttModel: m })}
+              update={update}
             />
           )}
 
@@ -498,18 +501,56 @@ function Languages({ prefs, onSet }: {
 
 type ModelRow = {
   id: string; label: string; bytes: number; wer: string; note: string
-  multilingual?: boolean; installed: boolean
+  multilingual?: boolean; quantised?: boolean; installed: boolean
 }
 
 function fmt(bytes: number): string {
   return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`
 }
 
-function Models({ prefs, onSelect, onEngine, onSttModel }: {
+function ElevenKeyRow(): React.JSX.Element {
+  const [status, setStatus] = useState<{ hasKey: boolean; masked: string | null }>({ hasKey: false, masked: null })
+  const [draft, setDraft] = useState('')
+  const refresh = (): void => { void window.flow.eleven.status().then(setStatus) }
+  useEffect(refresh, [])
+
+  return (
+    <Row
+      title="ElevenLabs API key"
+      desc={status.hasKey
+        ? `Stored in a private file, readable only by your user · ${status.masked}`
+        : 'Saved to a 0600 file. ELEVENLABS_API_KEY is picked up automatically if set.'}
+    >
+      {status.hasKey ? (
+        <button className="btn btn--ghost" onClick={async () => { await window.flow.eleven.clearKey(); refresh() }}>
+          Remove
+        </button>
+      ) : (
+        <div className="keyrow">
+          <input
+            type="password" placeholder="sk_…" value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void window.flow.eleven.setKey(draft).then(() => { setDraft(''); refresh() }) }}
+          />
+          <button
+            className="btn btn--dark" disabled={!draft.trim()}
+            onClick={async () => { await window.flow.eleven.setKey(draft); setDraft(''); refresh() }}
+          >
+            Save
+          </button>
+        </div>
+      )}
+    </Row>
+  )
+}
+
+function Models({ prefs, onSelect, onEngine, onSttModel, onProvider, update }: {
   prefs: Prefs | null
   onSelect: (id: string) => void
   onEngine: (m: 'local' | 'cloud') => Promise<void>
   onSttModel: (m: string) => Promise<void>
+  onProvider: (p: 'openai' | 'elevenlabs', model: string) => Promise<void>
+  update: (patch: Partial<Prefs>) => Promise<void>
 }): React.JSX.Element {
   const [list, setList] = useState<ModelRow[]>([])
   const [progress, setProgress] = useState<Record<string, number>>({})
@@ -550,7 +591,7 @@ function Models({ prefs, onSelect, onEngine, onSttModel }: {
           title="Where transcription runs"
           desc={
             prefs?.sttEngine === 'cloud'
-              ? 'Audio is uploaded to OpenAI. No model is loaded, so Quill uses almost no memory.'
+              ? `Audio is uploaded to ${prefs?.sttProvider === 'elevenlabs' ? 'ElevenLabs' : 'OpenAI'}. No model is loaded, so Quill uses almost no memory.`
               : 'Runs on this Mac. Audio never leaves it, but the model stays in memory while in use.'
           }
         >
@@ -560,28 +601,92 @@ function Models({ prefs, onSelect, onEngine, onSttModel }: {
             onChange={(e) => void onEngine(e.target.value as 'local' | 'cloud')}
           >
             <option value="local">On this Mac</option>
-            <option value="cloud">OpenAI (cloud)</option>
+            <option value="cloud">In the cloud</option>
           </select>
         </Row>
         {prefs?.sttEngine === 'cloud' && (
-          <Row title="Transcription model" desc="mini is a third of the price and was indistinguishable in testing.">
-            <select
-              className="modelinput"
-              value={prefs?.sttModel ?? 'gpt-4o-mini-transcribe'}
-              onChange={(e) => void onSttModel(e.target.value)}
-            >
-              <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe — $0.003/min</option>
-              <option value="gpt-4o-transcribe">gpt-4o-transcribe — $0.006/min</option>
-              <option value="whisper-1">whisper-1 — $0.006/min</option>
-            </select>
-          </Row>
+          <>
+            <Row title="Provider" desc="Both charge by audio length. Prices shown per hour of speech.">
+              <select
+                className="modelinput"
+                value={prefs?.sttProvider ?? 'openai'}
+                onChange={(e) => {
+                  const p = e.target.value as 'openai' | 'elevenlabs'
+                  // Each provider names its models differently; reset to a valid default.
+                  void onProvider(p, p === 'elevenlabs' ? 'scribe_v2' : 'gpt-4o-mini-transcribe')
+                }}
+              >
+                <option value="openai">OpenAI</option>
+                <option value="elevenlabs">ElevenLabs</option>
+              </select>
+            </Row>
+
+            <Row title="Transcription model" desc={
+              prefs?.sttProvider === 'elevenlabs'
+                ? 'Scribe bills per hour of audio.'
+                : 'mini is a third of the price and was indistinguishable in my French testing.'
+            }>
+              <select
+                className="modelinput"
+                value={prefs?.sttModel ?? ''}
+                onChange={(e) => void onSttModel(e.target.value)}
+              >
+                {prefs?.sttProvider === 'elevenlabs' ? (
+                  <>
+                    <option value="scribe_v2">scribe_v2 — $0.22/hr</option>
+                    <option value="scribe_v1">scribe_v1</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe — $0.18/hr</option>
+                    <option value="gpt-4o-transcribe">gpt-4o-transcribe — $0.36/hr</option>
+                    <option value="whisper-1">whisper-1 — $0.36/hr</option>
+                  </>
+                )}
+              </select>
+            </Row>
+
+            {prefs?.sttProvider === 'elevenlabs' && (
+              <>
+                <Row
+                  title="Stream while you speak"
+                  desc={
+                    prefs?.sttStreaming
+                      ? 'Uploads audio as you talk using scribe_v2_realtime, so only the tail is left when you let go. Saves roughly 400ms; the cleanup step after it is unchanged.'
+                      : 'Uploads the recording once you let go. Turn on to send it as you speak instead.'
+                  }
+                >
+                  <Toggle
+                    on={prefs?.sttStreaming ?? false}
+                    disabled={!prefs}
+                    onChange={(v) => void update({ sttStreaming: v })}
+                  />
+                </Row>
+                <Row
+                  title="Drop filler words"
+                  desc={
+                    prefs?.sttModel === 'scribe_v1' && !prefs?.sttStreaming
+                      ? 'Needs scribe_v2 — scribe_v1 ignores this.'
+                      : 'Removes “um”, false starts and non-speech sounds before you ever see them.'
+                  }
+                >
+                  <Toggle
+                    on={prefs?.sttNoVerbatim ?? true}
+                    disabled={!prefs}
+                    onChange={(v) => void update({ sttNoVerbatim: v })}
+                  />
+                </Row>
+                <ElevenKeyRow />
+              </>
+            )}
+          </>
         )}
       </div>
 
       {prefs?.sttEngine === 'cloud' && (
         <p className="sheet__note sheet__note--tight">
-          Your audio is sent to OpenAI. A local model is still used if the upload fails,
-          so keep one installed below.
+          Your audio is sent to {prefs?.sttProvider === 'elevenlabs' ? 'ElevenLabs' : 'OpenAI'}. A local
+          model is still used if the upload fails, so keep one installed below.
         </p>
       )}
 
@@ -602,6 +707,7 @@ function Models({ prefs, onSelect, onEngine, onSttModel }: {
                   {m.label}
                   <span className="model__meta">{fmt(m.bytes)} · WER {m.wer}</span>
                   {m.multilingual && <span className="pill pill--sm">Multilingual</span>}
+                  {m.quantised && <span className="pill pill--sm">Compressed</span>}
                   {active && m.installed && <span className="pill pill--sm pill--on">In use</span>}
                 </div>
                 <div className="row__desc">{m.note}</div>
