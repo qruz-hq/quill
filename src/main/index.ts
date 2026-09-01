@@ -10,7 +10,7 @@ import { SnippetStore } from './snippets'
 import { TransformStore } from './transforms'
 import { DictationStore } from './dictations'
 import { Cleanup } from './cleanup'
-import { checkForUpdate, notifyIfNewer } from './updates'
+import { checkForUpdate, promptIfNewer } from './updates'
 
 /* Screenshot calibration: captures were 1372px wide on a 1728pt display (0.794x).
    All sizes below are logical points, converted from the measured originals. */
@@ -39,9 +39,9 @@ function log(msg: string): void {
   console.log(msg)
 }
 
-type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string }
+type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
 const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json')
-const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M' }
+const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
 
 function loadSettings(): Settings {
   try {
@@ -206,6 +206,8 @@ function buildTray(): void {
     { label: 'New Voice Note', accelerator: 'Alt+M', click: () => void startVoiceNote() },
     { label: 'Stop Dictation', click: () => void stopDictation() },
     { type: 'separator' },
+    { label: 'Check for Updates…', click: () => void promptIfNewer(process.env.FLOW_UPDATE_REPO ?? 'qruz-hq/quill', { force: true }) },
+    { type: 'separator' },
     { label: 'Paste last transcript', click: () => { if (lastTranscript) clipboard.writeText(lastTranscript) } },
     { type: 'separator' },
     { label: 'Quit Quill', accelerator: 'Command+Q', click: () => app.quit() }
@@ -360,11 +362,23 @@ app.whenReady().then(() => {
   // Set this to your repo to enable update checks. Empty disables them.
   const UPDATE_REPO = process.env.FLOW_UPDATE_REPO ?? 'qruz-hq/quill'
   if (UPDATE_REPO) {
-    notifyIfNewer(UPDATE_REPO)
-    setInterval(() => notifyIfNewer(UPDATE_REPO), 6 * 60 * 60 * 1000)
+    const ask = (force = false): Promise<unknown> =>
+      promptIfNewer(UPDATE_REPO, {
+        skippedVersion: settings.skippedVersion,
+        onSkip: (v) => { settings = { ...settings, skippedVersion: v }; saveSettings(settings) },
+        force
+      })
+
+    // A moment after launch, so it does not fight the window appearing.
+    setTimeout(() => void ask(), 4000)
+    setInterval(() => void ask(), 6 * 60 * 60 * 1000)
+
     ipcMain.handle('updates:check', () => checkForUpdate(UPDATE_REPO))
+    // "Check now" from Settings always asks, even for a skipped version.
+    ipcMain.handle('updates:prompt', () => ask(true))
   } else {
     ipcMain.handle('updates:check', () => ({ current: app.getVersion(), newer: false }))
+    ipcMain.handle('updates:prompt', () => ({ current: app.getVersion(), newer: false }))
   }
   const swept = models.sweepPartials()
   if (swept.removed.length) {

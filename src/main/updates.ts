@@ -1,4 +1,4 @@
-import { app, shell, Notification } from 'electron'
+import { app, shell, dialog, BrowserWindow } from 'electron'
 
 const RELEASES_API = (repo: string): string => `https://api.github.com/repos/${repo}/releases/latest`
 
@@ -10,12 +10,15 @@ const RELEASES_API = (repo: string): string => `https://api.github.com/repos/${r
  * app cannot update itself. Once the app is signed with a Developer ID, swap
  * this for autoUpdater — see docs/RELEASING.md.
  */
-export async function checkForUpdate(repo: string): Promise<{
+export type UpdateInfo = {
   current: string
   latest?: string
   url?: string
+  notes?: string
   newer: boolean
-}> {
+}
+
+export async function checkForUpdate(repo: string): Promise<UpdateInfo> {
   const current = app.getVersion()
   try {
     const res = await fetch(RELEASES_API(repo), {
@@ -25,22 +28,61 @@ export async function checkForUpdate(repo: string): Promise<{
     const json = await res.json()
     const latest = String(json.tag_name ?? '').replace(/^v/, '')
     if (!latest) return { current, newer: false }
-    return { current, latest, url: json.html_url, newer: isNewer(latest, current) }
+    return {
+      current,
+      latest,
+      url: json.html_url,
+      notes: typeof json.body === 'string' ? json.body : undefined,
+      newer: isNewer(latest, current)
+    }
   } catch {
     return { current, newer: false }
   }
 }
 
-export function notifyIfNewer(repo: string): void {
-  void checkForUpdate(repo).then((r) => {
-    if (!r.newer || !r.url) return
-    const n = new Notification({
-      title: `Flow ${r.latest} is available`,
-      body: `You are on ${r.current}. Click to open the release.`
-    })
-    n.on('click', () => shell.openExternal(r.url!))
-    n.show()
-  })
+/** Only ask once per launch, however often the periodic check runs. */
+let askedThisLaunch = false
+
+/**
+ * Asks whether to update. A dialog rather than a notification because a
+ * notification is easy to miss and offers no way to decline permanently.
+ */
+export async function promptIfNewer(
+  repo: string,
+  opts: { skippedVersion?: string; onSkip?: (v: string) => void; force?: boolean } = {}
+): Promise<UpdateInfo> {
+  const r = await checkForUpdate(repo)
+  if (!r.newer || !r.url || !r.latest) return r
+  if (!opts.force) {
+    if (askedThisLaunch) return r
+    if (opts.skippedVersion === r.latest) return r   // user asked not to be told again
+  }
+  askedThisLaunch = true
+
+  // First line of the release notes, if it reads like prose rather than markup.
+  const firstLine = (r.notes ?? '').split('\n').map((l) => l.trim())
+    .find((l) => l && !l.startsWith('#') && !l.startsWith('```')) ?? ''
+
+  const { response, checkboxChecked } = await dialog.showMessageBox(
+    BrowserWindow.getAllWindows().find((w) => !w.isDestroyed() && w.isVisible()) ??
+      (undefined as unknown as BrowserWindow),
+    {
+      type: 'info',
+      title: 'Update available',
+      message: `Quill ${r.latest} is available`,
+      detail: `You are running ${r.current}.` + (firstLine ? `\n\n${firstLine}` : ''),
+      buttons: ['Download', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+      checkboxLabel: `Skip version ${r.latest}`,
+      checkboxChecked: false,
+      noLink: true
+    }
+  )
+
+  if (checkboxChecked && r.latest) opts.onSkip?.(r.latest)
+  if (response === 0) void shell.openExternal(r.url)
+  return r
 }
 
 /** Semver compare, tolerant of missing segments. */

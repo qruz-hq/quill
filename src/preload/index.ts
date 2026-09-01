@@ -16,7 +16,8 @@ const api = {
   },
   updates: {
     check: (): Promise<{ current: string; latest?: string; url?: string; newer: boolean }> =>
-      ipcRenderer.invoke('updates:check')
+      ipcRenderer.invoke('updates:check'),
+    prompt: () => ipcRenderer.invoke('updates:prompt')
   },
   system: {
     user: (): Promise<{ name: string }> => ipcRenderer.invoke('system:user')

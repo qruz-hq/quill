@@ -127,6 +127,7 @@ export default function Settings({ onClose }: { onClose: () => void }): React.JS
                 <Row title="Speech recognition" desc={`whisper.cpp · ggml-${prefs?.model ?? '—'} · Metal`}>
                   <span className="pill">On-device</span>
                 </Row>
+                <UpdateRow />
               </div>
             </>
           )}
@@ -601,6 +602,39 @@ function Toggle({ on, disabled, onChange }: {
     >
       <span className="toggle__knob" />
     </button>
+  )
+}
+
+function UpdateRow(): React.JSX.Element {
+  const [state, setState] = useState<{ current: string; latest?: string; newer: boolean } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => { void window.flow.updates.check().then(setState) }, [])
+
+  return (
+    <Row
+      title="Version"
+      desc={
+        state
+          ? state.newer
+            ? `${state.current} — ${state.latest} is available`
+            : `${state.current} — up to date`
+          : 'Checking…'
+      }
+    >
+      <button
+        className="btn btn--ghost"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true)
+          await window.flow.updates.prompt()
+          setState(await window.flow.updates.check())
+          setBusy(false)
+        }}
+      >
+        {busy ? 'Checking…' : 'Check now'}
+      </button>
+    </Row>
   )
 }
 
