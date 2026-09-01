@@ -1,0 +1,35 @@
+appId: studio.saudad.quill
+productName: Quill
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: resources/icons
+    to: icons
+  - from: resources/whisper
+    to: whisper
+extraFiles:
+  # Plain executable inside Contents/MacOS, NOT a nested .app: this makes the
+  # main app the TCC subject, so Microphone/Speech/Accessibility are all
+  # granted once, to "Quill".
+  - from: resources/FlowSTT.app/Contents/MacOS/flow-stt
+    to: MacOS/flow-stt
+mac:
+  icon: build/icon.icns
+  category: public.app-category.productivity
+  target:
+    - target: dir
+      arch: arm64
+  # Ad-hoc signing is enough for local use; TCC needs a stable identity.
+  identity: null
+  extendInfo:
+    NSMicrophoneUsageDescription: Flow needs the microphone to turn your speech into text.
+    NSSpeechRecognitionUsageDescription: Flow uses on-device speech recognition to transcribe your dictation.
+    LSUIElement: false
+
+publish:
+  provider: github
+  # owner/repo are read from the git remote when publishing

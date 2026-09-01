@@ -1,0 +1,62 @@
+[
+ {
+  "id": 9000,
+  "cat": "selfcorrect",
+  "text": "i want to do a meeting at 7 no at 6",
+  "expect": {}
+ },
+ {
+  "id": 9001,
+  "cat": "selfcorrect",
+  "text": "send it to john i mean sarah before friday",
+  "expect": {}
+ },
+ {
+  "id": 9002,
+  "cat": "selfcorrect",
+  "text": "lets meet tuesday sorry wednesday at the office",
+  "expect": {}
+ },
+ {
+  "id": 9003,
+  "cat": "selfcorrect",
+  "text": "the deadline is the 15th no the 25th",
+  "expect": {}
+ },
+ {
+  "id": 9004,
+  "cat": "selfcorrect",
+  "text": "we need three servers actually four",
+  "expect": {}
+ },
+ {
+  "id": 9005,
+  "cat": "selfcorrect",
+  "text": "call him at 9 no make it 10",
+  "expect": {}
+ },
+ {
+  "id": 9006,
+  "cat": "selfcorrect",
+  "text": "book the room for monday scratch that tuesday",
+  "expect": {}
+ },
+ {
+  "id": 9007,
+  "cat": "selfcorrect",
+  "text": "the price is 200 sorry 250 dollars",
+  "expect": {}
+ },
+ {
+  "id": 9008,
+  "cat": "selfcorrect",
+  "text": "use postgres i mean mysql for this one",
+  "expect": {}
+ },
+ {
+  "id": 9009,
+  "cat": "selfcorrect",
+  "text": "its on the second floor no the third floor",
+  "expect": {}
+ }
+]

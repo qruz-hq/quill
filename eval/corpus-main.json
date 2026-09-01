@@ -1,0 +1,1442 @@
+[
+ {
+  "id": 1,
+  "cat": "list_ordinal",
+  "text": "ok so the three things we need are first the api keys second the staging database and third the design files",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 2,
+  "cat": "list_ordinal",
+  "text": "the steps are first the api keys second the staging database and third the design files",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 3,
+  "cat": "list_ordinal",
+  "text": "we should do this in order first the api keys second the staging database and third the design files",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 4,
+  "cat": "list_ordinal",
+  "text": "ok so the three things we need are first gather requirements second build a prototype and third run user testing",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 5,
+  "cat": "list_ordinal",
+  "text": "the steps are first gather requirements second build a prototype and third run user testing",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 6,
+  "cat": "list_ordinal",
+  "text": "we should do this in order first gather requirements second build a prototype and third run user testing",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 7,
+  "cat": "list_ordinal",
+  "text": "ok so the three things we need are first check the logs second restart the service and third file an incident",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 8,
+  "cat": "list_ordinal",
+  "text": "the steps are first check the logs second restart the service and third file an incident",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 9,
+  "cat": "list_ordinal",
+  "text": "we should do this in order first check the logs second restart the service and third file an incident",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 10,
+  "cat": "list_ordinal",
+  "text": "ok so the three things we need are first pick a date second book the venue and third send invites",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 11,
+  "cat": "list_ordinal",
+  "text": "the steps are first pick a date second book the venue and third send invites",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 12,
+  "cat": "list_ordinal",
+  "text": "we should do this in order first pick a date second book the venue and third send invites",
+  "expect": {
+   "list": true,
+   "numbered": true
+  }
+ },
+ {
+  "id": 13,
+  "cat": "two_items",
+  "text": "we need to grab milk and eggs on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 14,
+  "cat": "two_items",
+  "text": "can you bring milk and eggs on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 15,
+  "cat": "two_items",
+  "text": "i'll handle milk and eggs on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 16,
+  "cat": "two_items",
+  "text": "lets review milk and eggs on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 17,
+  "cat": "two_items",
+  "text": "dont forget milk and eggs on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 18,
+  "cat": "two_items",
+  "text": "we need to grab the report and the deck on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 19,
+  "cat": "two_items",
+  "text": "can you bring the report and the deck on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 20,
+  "cat": "two_items",
+  "text": "i'll handle the report and the deck on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 21,
+  "cat": "two_items",
+  "text": "lets review the report and the deck on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 22,
+  "cat": "two_items",
+  "text": "dont forget the report and the deck on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 23,
+  "cat": "two_items",
+  "text": "we need to grab lunch and coffee on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 24,
+  "cat": "two_items",
+  "text": "can you bring lunch and coffee on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 25,
+  "cat": "two_items",
+  "text": "i'll handle lunch and coffee on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 26,
+  "cat": "two_items",
+  "text": "lets review lunch and coffee on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 27,
+  "cat": "two_items",
+  "text": "dont forget lunch and coffee on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 28,
+  "cat": "two_items",
+  "text": "we need to grab john and sarah on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 29,
+  "cat": "two_items",
+  "text": "can you bring john and sarah on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 30,
+  "cat": "two_items",
+  "text": "i'll handle john and sarah on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 31,
+  "cat": "two_items",
+  "text": "lets review john and sarah on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 32,
+  "cat": "two_items",
+  "text": "dont forget john and sarah on the way",
+  "expect": {
+   "list": false
+  }
+ },
+ {
+  "id": 33,
+  "cat": "question",
+  "text": "what is the capital of france",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 34,
+  "cat": "question",
+  "text": "how many days are in february",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 35,
+  "cat": "question",
+  "text": "who wrote hamlet",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 36,
+  "cat": "question",
+  "text": "whats the weather going to be like tomorrow",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 37,
+  "cat": "question",
+  "text": "can you tell me what time the meeting starts",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 38,
+  "cat": "question",
+  "text": "do you know if the build passed",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 39,
+  "cat": "question",
+  "text": "why is the search page so slow",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 40,
+  "cat": "question",
+  "text": "when does the quarter end",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 41,
+  "cat": "question",
+  "text": "which database are we using for staging",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 42,
+  "cat": "question",
+  "text": "how do i reset my password",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 43,
+  "cat": "question",
+  "text": "what's two plus two",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 44,
+  "cat": "question",
+  "text": "is the client happy with the design",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 45,
+  "cat": "question",
+  "text": "where did we put the api keys",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 46,
+  "cat": "question",
+  "text": "should we ship on friday or wait",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 47,
+  "cat": "question",
+  "text": "how long will the migration take",
+  "expect": {
+   "question": true
+  }
+ },
+ {
+  "id": 48,
+  "cat": "instruction",
+  "text": "write me a haiku about the ocean",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 49,
+  "cat": "instruction",
+  "text": "summarise the last meeting for me",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 50,
+  "cat": "instruction",
+  "text": "translate this into spanish",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 51,
+  "cat": "instruction",
+  "text": "give me five ideas for the landing page",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 52,
+  "cat": "instruction",
+  "text": "explain how oauth works",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 53,
+  "cat": "instruction",
+  "text": "draft an email to the client",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 54,
+  "cat": "instruction",
+  "text": "make a list of everything we discussed",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 55,
+  "cat": "instruction",
+  "text": "tell me a joke about databases",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 56,
+  "cat": "instruction",
+  "text": "generate some sample data for the table",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 57,
+  "cat": "instruction",
+  "text": "what should i name this function",
+  "expect": {
+   "instruction": true
+  }
+ },
+ {
+  "id": 58,
+  "cat": "mishear",
+  "text": "i sent the form the client yesterday and their going to review it",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 59,
+  "cat": "mishear",
+  "text": "the build keeps failing on the sea i pipeline after we merged",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 60,
+  "cat": "mishear",
+  "text": "we need to fix some trash grid errors in the transcript",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 61,
+  "cat": "mishear",
+  "text": "if i start seeing a list it should make bullet points",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 62,
+  "cat": "mishear",
+  "text": "can you check the a p i response for the user end point",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 63,
+  "cat": "mishear",
+  "text": "their going to the meeting over they're",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 64,
+  "cat": "mishear",
+  "text": "i think its to late to change the sea ss",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 65,
+  "cat": "mishear",
+  "text": "lets sink the database before we deploy",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 66,
+  "cat": "mishear",
+  "text": "the reject query is returning null",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 67,
+  "cat": "mishear",
+  "text": "we should you the new component instead",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 68,
+  "cat": "mishear",
+  "text": "i need to right the documentation today",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 69,
+  "cat": "mishear",
+  "text": "the sale server is down again",
+  "expect": {
+   "correct": true
+  }
+ },
+ {
+  "id": 70,
+  "cat": "filler",
+  "text": "so um i wanted to say that the the meeting is at three uh three thirty tomorrow and we need to cover the budget",
+  "expect": {}
+ },
+ {
+  "id": 71,
+  "cat": "filler",
+  "text": "uh yeah i think like we should probably you know revisit that decision",
+  "expect": {}
+ },
+ {
+  "id": 72,
+  "cat": "filler",
+  "text": "ok so basically what happened was um the deploy failed and then uh nobody noticed",
+  "expect": {}
+ },
+ {
+  "id": 73,
+  "cat": "filler",
+  "text": "i mean its it's fine but uh we could do better honestly",
+  "expect": {}
+ },
+ {
+  "id": 74,
+  "cat": "filler",
+  "text": "so like the thing is um we dont really have the bandwidth right now",
+  "expect": {}
+ },
+ {
+  "id": 75,
+  "cat": "filler",
+  "text": "err let me think uh yes lets go with the second option",
+  "expect": {}
+ },
+ {
+  "id": 76,
+  "cat": "filler",
+  "text": "and um also we need to uh double check the the invoice numbers",
+  "expect": {}
+ },
+ {
+  "id": 77,
+  "cat": "filler",
+  "text": "you know what i mean like its just not not working properly",
+  "expect": {}
+ },
+ {
+  "id": 78,
+  "cat": "multi_topic",
+  "text": "hey can you check the deploy i think the preview build failed again and uh also the search page is still broken on mobile can you take a look today",
+  "expect": {
+   "split": true
+  }
+ },
+ {
+  "id": 79,
+  "cat": "multi_topic",
+  "text": "the client called this morning they want to move the deadline up also we lost the staging environment overnight",
+  "expect": {
+   "split": true
+  }
+ },
+ {
+  "id": 80,
+  "cat": "multi_topic",
+  "text": "i finished the report its in the shared drive separately we should talk about hiring next week",
+  "expect": {
+   "split": true
+  }
+ },
+ {
+  "id": 81,
+  "cat": "multi_topic",
+  "text": "the tests are green now but i had to skip two of them we should come back to those before release",
+  "expect": {
+   "split": true
+  }
+ },
+ {
+  "id": 82,
+  "cat": "multi_topic",
+  "text": "good news the migration worked bad news it took four hours longer than planned",
+  "expect": {
+   "split": true
+  }
+ },
+ {
+  "id": 83,
+  "cat": "prose",
+  "text": "i think the design is coming along nicely but we should probably revisit the spacing on mobile before we ship it",
+  "expect": {}
+ },
+ {
+  "id": 84,
+  "cat": "prose",
+  "text": "the api returns a 500 whenever the payload is larger than about two megabytes",
+  "expect": {}
+ },
+ {
+  "id": 85,
+  "cat": "prose",
+  "text": "we agreed that the new onboarding flow should be three screens at most",
+  "expect": {}
+ },
+ {
+  "id": 86,
+  "cat": "prose",
+  "text": "honestly the simplest fix here is to cache the response for a few minutes",
+  "expect": {}
+ },
+ {
+  "id": 87,
+  "cat": "prose",
+  "text": "she said shed review it tomorrow morning and get back to us by noon",
+  "expect": {}
+ },
+ {
+  "id": 88,
+  "cat": "prose",
+  "text": "the whole point of the refactor was to make this part easier to test",
+  "expect": {}
+ },
+ {
+  "id": 89,
+  "cat": "prose",
+  "text": "if the user has no permissions we should show an empty state not an error",
+  "expect": {}
+ },
+ {
+  "id": 90,
+  "cat": "prose",
+  "text": "i pushed a branch called fix slash search pagination if you want to look",
+  "expect": {}
+ },
+ {
+  "id": 91,
+  "cat": "prose",
+  "text": "it turns out the bug was in the date parsing all along which is embarrassing",
+  "expect": {}
+ },
+ {
+  "id": 92,
+  "cat": "prose",
+  "text": "we could ship it as is and iterate but id rather get the spacing right first",
+  "expect": {}
+ },
+ {
+  "id": 93,
+  "cat": "prose",
+  "text": "the meeting ran long so we didnt get to the roadmap item",
+  "expect": {}
+ },
+ {
+  "id": 94,
+  "cat": "prose",
+  "text": "please let me know if you need anything else from me before the weekend",
+  "expect": {}
+ },
+ {
+  "id": 95,
+  "cat": "prose",
+  "text": "the new logo looks great on dark backgrounds but washes out on light ones",
+  "expect": {}
+ },
+ {
+  "id": 96,
+  "cat": "prose",
+  "text": "i dont think we need a separate service for this a single endpoint is fine",
+  "expect": {}
+ },
+ {
+  "id": 97,
+  "cat": "prose",
+  "text": "can you confirm youve received the invoice and that the amount looks right",
+  "expect": {}
+ },
+ {
+  "id": 98,
+  "cat": "list_plain",
+  "text": "i want to buy tomatoes potatoes lettuce",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 99,
+  "cat": "list_plain",
+  "text": "we need to pick up tomatoes potatoes lettuce",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 100,
+  "cat": "list_plain",
+  "text": "can you grab tomatoes potatoes lettuce",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 101,
+  "cat": "list_plain",
+  "text": "remember to get tomatoes potatoes lettuce",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 102,
+  "cat": "list_plain",
+  "text": "the shopping list is tomatoes potatoes lettuce",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 103,
+  "cat": "list_plain",
+  "text": "i need to order tomatoes potatoes lettuce",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 104,
+  "cat": "list_plain",
+  "text": "i want to buy milk eggs bread",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 105,
+  "cat": "list_plain",
+  "text": "we need to pick up milk eggs bread",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 106,
+  "cat": "list_plain",
+  "text": "can you grab milk eggs bread",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 107,
+  "cat": "list_plain",
+  "text": "remember to get milk eggs bread",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 108,
+  "cat": "list_plain",
+  "text": "the shopping list is milk eggs bread",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 109,
+  "cat": "list_plain",
+  "text": "i need to order milk eggs bread",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 110,
+  "cat": "list_plain",
+  "text": "i want to buy apples bananas oranges grapes",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 111,
+  "cat": "list_plain",
+  "text": "we need to pick up apples bananas oranges grapes",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 112,
+  "cat": "list_plain",
+  "text": "can you grab apples bananas oranges grapes",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 113,
+  "cat": "list_plain",
+  "text": "remember to get apples bananas oranges grapes",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 114,
+  "cat": "list_plain",
+  "text": "the shopping list is apples bananas oranges grapes",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 115,
+  "cat": "list_plain",
+  "text": "i need to order apples bananas oranges grapes",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 116,
+  "cat": "list_plain",
+  "text": "i want to buy rice beans chicken",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 117,
+  "cat": "list_plain",
+  "text": "we need to pick up rice beans chicken",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 118,
+  "cat": "list_plain",
+  "text": "can you grab rice beans chicken",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 119,
+  "cat": "list_plain",
+  "text": "remember to get rice beans chicken",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 120,
+  "cat": "list_plain",
+  "text": "the shopping list is rice beans chicken",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 121,
+  "cat": "list_plain",
+  "text": "i need to order rice beans chicken",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 122,
+  "cat": "list_plain",
+  "text": "i want to buy coffee sugar oat milk",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 123,
+  "cat": "list_plain",
+  "text": "we need to pick up coffee sugar oat milk",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 124,
+  "cat": "list_plain",
+  "text": "can you grab coffee sugar oat milk",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 125,
+  "cat": "list_plain",
+  "text": "remember to get coffee sugar oat milk",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 126,
+  "cat": "list_plain",
+  "text": "the shopping list is coffee sugar oat milk",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 127,
+  "cat": "list_plain",
+  "text": "i need to order coffee sugar oat milk",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 128,
+  "cat": "list_plain",
+  "text": "today i need to finish the report call the client review the pull request",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 129,
+  "cat": "list_plain",
+  "text": "this week we should finish the report call the client review the pull request",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 130,
+  "cat": "list_plain",
+  "text": "the plan is to finish the report call the client review the pull request",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "id": 131,
+  "cat": "list_plain",
+  "text": "before friday i have to finish the report call the client review the pull request",
+  "expect": {
+   "list": true
+  }
+ },
+ {
+  "cat": "question",
+  "text": "how much does the pro plan cost",
+  "expect": {
+   "question": true
+  },
+  "id": 132
+ },
+ {
+  "cat": "question",
+  "text": "did anyone reply to the support ticket",
+  "expect": {
+   "question": true
+  },
+  "id": 133
+ },
+ {
+  "cat": "question",
+  "text": "are we still on for thursday",
+  "expect": {
+   "question": true
+  },
+  "id": 134
+ },
+ {
+  "cat": "question",
+  "text": "whats the difference between staging and production",
+  "expect": {
+   "question": true
+  },
+  "id": 135
+ },
+ {
+  "cat": "question",
+  "text": "could you send me the link again",
+  "expect": {
+   "question": true
+  },
+  "id": 136
+ },
+ {
+  "cat": "question",
+  "text": "has the invoice been paid yet",
+  "expect": {
+   "question": true
+  },
+  "id": 137
+ },
+ {
+  "cat": "question",
+  "text": "who is on call this weekend",
+  "expect": {
+   "question": true
+  },
+  "id": 138
+ },
+ {
+  "cat": "question",
+  "text": "what time zone is the client in",
+  "expect": {
+   "question": true
+  },
+  "id": 139
+ },
+ {
+  "cat": "question",
+  "text": "is there a reason we chose postgres",
+  "expect": {
+   "question": true
+  },
+  "id": 140
+ },
+ {
+  "cat": "question",
+  "text": "do we have analytics on that page",
+  "expect": {
+   "question": true
+  },
+  "id": 141
+ },
+ {
+  "cat": "question",
+  "text": "how many users signed up last month",
+  "expect": {
+   "question": true
+  },
+  "id": 142
+ },
+ {
+  "cat": "question",
+  "text": "whats blocking the release",
+  "expect": {
+   "question": true
+  },
+  "id": 143
+ },
+ {
+  "cat": "question",
+  "text": "would it be easier to just rewrite it",
+  "expect": {
+   "question": true
+  },
+  "id": 144
+ },
+ {
+  "cat": "question",
+  "text": "can we afford another contractor",
+  "expect": {
+   "question": true
+  },
+  "id": 145
+ },
+ {
+  "cat": "question",
+  "text": "did the backup actually run",
+  "expect": {
+   "question": true
+  },
+  "id": 146
+ },
+ {
+  "cat": "instruction",
+  "text": "rewrite this to be more concise",
+  "expect": {
+   "instruction": true
+  },
+  "id": 147
+ },
+ {
+  "cat": "instruction",
+  "text": "turn these notes into a summary",
+  "expect": {
+   "instruction": true
+  },
+  "id": 148
+ },
+ {
+  "cat": "instruction",
+  "text": "find me the relevant documentation",
+  "expect": {
+   "instruction": true
+  },
+  "id": 149
+ },
+ {
+  "cat": "instruction",
+  "text": "come up with a name for the project",
+  "expect": {
+   "instruction": true
+  },
+  "id": 150
+ },
+ {
+  "cat": "instruction",
+  "text": "list the pros and cons of each option",
+  "expect": {
+   "instruction": true
+  },
+  "id": 151
+ },
+ {
+  "cat": "instruction",
+  "text": "draft a slack message about the outage",
+  "expect": {
+   "instruction": true
+  },
+  "id": 152
+ },
+ {
+  "cat": "instruction",
+  "text": "convert this to typescript",
+  "expect": {
+   "instruction": true
+  },
+  "id": 153
+ },
+ {
+  "cat": "instruction",
+  "text": "help me debug this error",
+  "expect": {
+   "instruction": true
+  },
+  "id": 154
+ },
+ {
+  "cat": "instruction",
+  "text": "suggest a better variable name",
+  "expect": {
+   "instruction": true
+  },
+  "id": 155
+ },
+ {
+  "cat": "instruction",
+  "text": "outline the blog post",
+  "expect": {
+   "instruction": true
+  },
+  "id": 156
+ },
+ {
+  "cat": "mishear",
+  "text": "the coup bernetes cluster is down",
+  "expect": {
+   "correct": true
+  },
+  "id": 157
+ },
+ {
+  "cat": "mishear",
+  "text": "we need to update the jason config file",
+  "expect": {
+   "correct": true
+  },
+  "id": 158
+ },
+ {
+  "cat": "mishear",
+  "text": "can you push to the master ranch",
+  "expect": {
+   "correct": true
+  },
+  "id": 159
+ },
+ {
+  "cat": "mishear",
+  "text": "the react component is not re rendering",
+  "expect": {
+   "correct": true
+  },
+  "id": 160
+ },
+ {
+  "cat": "mishear",
+  "text": "i got a four oh four on that page",
+  "expect": {
+   "correct": true
+  },
+  "id": 161
+ },
+ {
+  "cat": "mishear",
+  "text": "we use tail wind for styling",
+  "expect": {
+   "correct": true
+  },
+  "id": 162
+ },
+ {
+  "cat": "mishear",
+  "text": "the pull request needs a re base",
+  "expect": {
+   "correct": true
+  },
+  "id": 163
+ },
+ {
+  "cat": "mishear",
+  "text": "check the enviroment variables please",
+  "expect": {
+   "correct": true
+  },
+  "id": 164
+ },
+ {
+  "cat": "mishear",
+  "text": "she works in the marketing depart mint",
+  "expect": {
+   "correct": true
+  },
+  "id": 165
+ },
+ {
+  "cat": "mishear",
+  "text": "the data base migration failed",
+  "expect": {
+   "correct": true
+  },
+  "id": 166
+ },
+ {
+  "cat": "mishear",
+  "text": "add a new roue to the router",
+  "expect": {
+   "correct": true
+  },
+  "id": 167
+ },
+ {
+  "cat": "mishear",
+  "text": "the cash is stale again",
+  "expect": {
+   "correct": true
+  },
+  "id": 168
+ },
+ {
+  "cat": "filler",
+  "text": "um so yeah i guess we could uh try that approach",
+  "expect": {},
+  "id": 169
+ },
+ {
+  "cat": "filler",
+  "text": "like honestly its its not a big deal",
+  "expect": {},
+  "id": 170
+ },
+ {
+  "cat": "filler",
+  "text": "so uh what i was thinking was um maybe we split it",
+  "expect": {},
+  "id": 171
+ },
+ {
+  "cat": "filler",
+  "text": "well you know i mean it depends really",
+  "expect": {},
+  "id": 172
+ },
+ {
+  "cat": "filler",
+  "text": "uh huh yeah ok so lets uh lets move on",
+  "expect": {},
+  "id": 173
+ },
+ {
+  "cat": "filler",
+  "text": "i i think we we should wait a bit",
+  "expect": {},
+  "id": 174
+ },
+ {
+  "cat": "filler",
+  "text": "so basically um the the client wants it by friday",
+  "expect": {},
+  "id": 175
+ },
+ {
+  "cat": "multi_topic",
+  "text": "the deploy went out at nine everything looks stable also i updated the runbook while i was in there",
+  "expect": {
+   "split": true
+  },
+  "id": 176
+ },
+ {
+  "cat": "multi_topic",
+  "text": "i cant make standup tomorrow im at the dentist ill post an update in the channel instead",
+  "expect": {
+   "split": true
+  },
+  "id": 177
+ },
+ {
+  "cat": "multi_topic",
+  "text": "we hit the rate limit again i bumped the quota for now but we should add backoff",
+  "expect": {
+   "split": true
+  },
+  "id": 178
+ },
+ {
+  "cat": "multi_topic",
+  "text": "design handed over the new screens they look good one thing the empty state is missing",
+  "expect": {
+   "split": true
+  },
+  "id": 179
+ },
+ {
+  "cat": "multi_topic",
+  "text": "the contract came through finance needs to sign off before we can start",
+  "expect": {
+   "split": true
+  },
+  "id": 180
+ },
+ {
+  "cat": "prose",
+  "text": "i left a couple of comments on the pull request nothing blocking",
+  "expect": {},
+  "id": 181
+ },
+ {
+  "cat": "prose",
+  "text": "we should probably write this down somewhere before we all forget",
+  "expect": {},
+  "id": 182
+ },
+ {
+  "cat": "prose",
+  "text": "the onboarding email is going to spam for some gmail users",
+  "expect": {},
+  "id": 183
+ },
+ {
+  "cat": "prose",
+  "text": "it works locally but falls over as soon as it hits real traffic",
+  "expect": {},
+  "id": 184
+ },
+ {
+  "cat": "prose",
+  "text": "id rather do it properly now than patch it three times later",
+  "expect": {},
+  "id": 185
+ },
+ {
+  "cat": "prose",
+  "text": "the customer said the export feature is the main reason they subscribed",
+  "expect": {},
+  "id": 186
+ },
+ {
+  "cat": "prose",
+  "text": "theres a race condition somewhere between the auth check and the redirect",
+  "expect": {},
+  "id": 187
+ },
+ {
+  "cat": "prose",
+  "text": "lets keep the scope tight for v1 and see what people actually use",
+  "expect": {},
+  "id": 188
+ }
+]

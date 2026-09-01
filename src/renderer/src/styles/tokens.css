@@ -1,0 +1,127 @@
+/* Design tokens extracted verbatim from Wispr Flow v1.6.721 (app.asar) */
+
+@font-face {
+  font-family: 'Figtree';
+  src: url('../assets/fonts/Figtree-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 300 900; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'Figtree';
+  src: url('../assets/fonts/Figtree-Italic-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 300 900; font-style: italic; font-display: block;
+}
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('../assets/fonts/EBGaramond-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 400 800; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('../assets/fonts/EBGaramond-Italic-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 400 800; font-style: italic; font-display: block;
+}
+@font-face {
+  font-family: 'Manrope';
+  src: url('../assets/fonts/Manrope-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 200 800; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'Google Sans Code';
+  src: url('../assets/fonts/GoogleSansCode-VariableFont_wght.ttf') format('truetype-variations');
+  font-weight: 300 800; font-style: normal; font-display: block;
+}
+
+:root {
+  /* ---- sand: warm off-white chrome ---- */
+  --sand-50: #fcfcfb;  --sand-100: #faf9f7; --sand-200: #f8f7f3; --sand-300: #f7f6f2;
+  --sand-400: #f6f5f1; --sand-500: #f5f4f0; --sand-600: #eeebe3; --sand-700: #c5c0b3;
+  --sand-800: #a39d8e; --sand-900: #b3b2ad; --sand-950: #c8c8c2;
+
+  /* ---- vast: greyscale text / borders ---- */
+  --vast-50: #e9e8e1;  --vast-100: #deddd7; --vast-200: #c8c8c2; --vast-300: #b3b2ad;
+  --vast-400: #9d9c98; --vast-500: #878683; --vast-600: #9d9c98; --vast-700: #b3b2ad;
+  --vast-800: #c8c8c2; --vast-900: #c8c8c2; --vast-950: #deddd7;
+
+  /* ---- dawn: lavender ---- */
+  --dawn-50: #fdfbff;  --dawn-100: #fcf7ff; --dawn-200: #faf1ff; --dawn-300: #f7ebff;
+  --dawn-400: #f4e1ff; --dawn-500: #f0d7ff; --dawn-600: #d2ace9; --dawn-700: #d2ace9;
+  --dawn-800: #e4c8f5; --dawn-900: #f0d7ff; --dawn-950: #f7ebff;
+
+  /* ---- fathom: deep teal ---- */
+  --fathom-50: #e2f5f2; --fathom-100: #ceedea; --fathom-200: #b8e4dc; --fathom-300: #9fd9cf;
+  --fathom-400: #84cdc1; --fathom-500: #68bdb0; --fathom-600: #4daa9d; --fathom-700: #369489;
+  --fathom-800: #247872; --fathom-900: #1a5c5c; --fathom-950: #034f46; --fathom: #034f46;
+
+  /* ---- lumen / signal / accents ---- */
+  --lumen-50: #fffffd; --lumen-100: #fffffb; --lumen-200: #fffff5; --lumen-300: #ffffef;
+  --lumen-400: #ffffeb; --lumen-500: #f7f7db; --lumen-600: #efefc9; --lumen-700: #e2e2ac;
+  --lumen-800: #d3d388; --lumen-900: #bfbf68; --lumen-950: #a9a939; --lumen: #ffffeb;
+
+  --signal-50: #fffcfe; --signal-100: #fff2fc; --signal-200: #ffe4fa; --signal-300: #ffd7f7;
+  --signal-400: #ffc9f5; --signal-500: #ffbcf2; --signal-600: #e78bd5; --signal-700: #c56cb4;
+  --signal-800: #a3398f; --signal-900: #7d266c; --signal-950: #3f0433;
+
+  --glow-200: #facda1; --glow-300: #ffa946;
+  --flare-400: #ff6c4c;
+  --chord-600: #7232a6;
+  --destructive-400: #f87171; --destructive-500: #ee6a6a; --destructive-700: #bc3d3d;
+  --green-400: #34d399; --green-500: #10b981;
+  --focus: #03b2cb;
+  --shade-black: #000; --shade-white: #fff;
+
+  /* ---- layout / motion ---- */
+  --dialog-border-radius: 12px;
+  --dialog-border-width: 1px;
+  --sidebar-rail-width: 48px;
+  --spring-duration: 0.2s;
+  --nudge-duration: 3.2s;
+  --waveform-bar-width: 2px;
+  --audio-level-meter-segment-width: 16px;
+  --audio-level-meter-segment-height: 48px;
+  --audio-level-meter-segment-radius: 9999px;
+
+  /* ---- semantic ---- */
+  --bg-chrome: var(--sand-300);
+  --bg-content: var(--shade-white);
+  --text-primary: #1a1a1a;
+  --text-secondary: #71716e;
+  --text-tertiary: #9d9c98;
+  --border-subtle: #ececE8;
+
+  --font-sans: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'EB Garamond', Georgia, serif;
+  --font-mono: 'Google Sans Code', ui-monospace, 'SF Mono', monospace;
+}
+
+:root[data-theme='dark'] {
+    --sand-50: #141414;  --sand-100: #1a1a1a; --sand-200: #1f1f1e; --sand-300: #292928;
+    --sand-400: #2e2e2c; --sand-500: #333331; --sand-600: #464544; --sand-700: #71716e;
+    --sand-800: #9d9c98; --sand-900: #736e62; --sand-950: #4d4a42;
+
+    --vast-50: #1a1a1a;  --vast-100: #242423; --vast-200: #353534; --vast-300: #464544;
+    --vast-400: #71716e; --vast-600: #71716e; --vast-700: #5b5b59; --vast-800: #464544;
+    --vast-900: #30302f; --vast-950: #1a1a1a;
+
+    --dawn-50: #2a2339;  --dawn-100: #322840; --dawn-200: #3c2947; --dawn-300: #502b66;
+    --dawn-400: #6c358c; --dawn-500: #a26ec1; --dawn-600: #c48fdf; --dawn-700: #a26ec1;
+    --dawn-800: #6c358c; --dawn-900: #502b66; --dawn-950: #3c2947;
+
+    --fathom: #34d399;
+    --lumen: #deddd7;
+    --chord-600: #c48fdf;
+    --shade-black: #deddd7; --shade-white: #1a1a1a;
+
+    --bg-content: #1a1a1a;
+    --text-primary: #e9e8e1;
+    --text-secondary: #9d9c98;
+    --text-tertiary: #71716e;
+    --border-subtle: #2e2e2c;
+  }
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}

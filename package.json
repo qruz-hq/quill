@@ -1,0 +1,35 @@
+{
+  "name": "quill",
+  "version": "0.1.0",
+  "description": "Local-first dictation for macOS",
+  "main": "./out/main/index.js",
+  "author": "",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "stt:build": "swiftc -O -framework Speech -framework AVFoundation -framework CoreAudio -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker native/stt/Info.plist -o /tmp/flow-stt native/stt/main.swift && rm -rf resources/FlowSTT.app && mkdir -p resources/FlowSTT.app/Contents/MacOS && cp native/stt/Info.plist resources/FlowSTT.app/Contents/Info.plist && cp /tmp/flow-stt resources/FlowSTT.app/Contents/MacOS/flow-stt && codesign --force --deep --sign - --identifier studio.saudad.quill.stt resources/FlowSTT.app",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "package": "electron-vite build && electron-builder --mac --dir",
+    "release": "electron-vite build && electron-builder --mac --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

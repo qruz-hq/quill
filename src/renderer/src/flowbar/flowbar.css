@@ -1,0 +1,123 @@
+/* Flow Bar — always-on-top window docked to the right screen edge.
+   The window itself is transparent; only the shell paints. */
+
+html, body, #root { height: 100%; margin: 0; background: transparent; }
+.bar-body { overflow: hidden; user-select: none; cursor: default; }
+
+.bar {
+  height: 100%;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 0;
+}
+
+/* ---- idle sliver ---- */
+.bar__sliver {
+  width: 5px; height: 62px;
+  border-radius: 4px 0 0 4px;
+  background: #1a1a1a;
+  opacity: 0.9;
+  transition: opacity var(--spring-duration) ease, width var(--spring-duration) ease;
+}
+.bar--expanded .bar__sliver, .bar--recording .bar__sliver { opacity: 0; width: 0; }
+
+/* ---- expanded shell ---- */
+.bar__shell {
+  display: flex; align-items: center; gap: 6px;
+  padding-right: 7px;
+  opacity: 0; transform: translateX(10px);
+  pointer-events: none;
+  transition: opacity var(--spring-duration) ease, transform var(--spring-duration) ease;
+}
+.bar--expanded .bar__shell, .bar--recording .bar__shell {
+  opacity: 1; transform: none; pointer-events: auto;
+}
+
+.bar__collapse {
+  display: grid; place-items: center;
+  width: 15px; height: 15px;
+  color: rgba(255, 255, 255, 0.55);
+}
+.bar__collapse svg { width: 13px; height: 13px; }
+
+.bar__stack { display: flex; flex-direction: column; gap: 7px; }
+
+/* ---- circular buttons ---- */
+.barbtn__wrap { position: relative; display: flex; align-items: center; justify-content: flex-end; }
+
+.barbtn {
+  width: 29px; height: 29px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: #1a1a1a; color: #f2f1ec;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
+  transition: background var(--spring-duration) ease, transform var(--spring-duration) ease;
+}
+.barbtn svg { width: 15px; height: 15px; }
+.barbtn:hover { transform: scale(1.06); }
+.barbtn--primary { background: #3a3a38; }
+.barbtn--primary:hover { background: #4a4a47; }
+
+/* ---- tooltips (open to the left) ---- */
+.tooltip {
+  position: absolute; right: 36px; top: 50%;
+  transform: translateY(-50%) translateX(6px);
+  display: flex; align-items: center; gap: 7px;
+  height: 29px; padding: 0 15px;
+  border-radius: 9999px;
+  background: #1a1a1a; color: #f2f1ec;
+  font-size: 13.5px; font-weight: 500; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.barbtn__wrap:hover .tooltip { opacity: 1; transform: translateY(-50%); }
+.tooltip__key { font-weight: 700; }
+
+/* ---- recording pill ---- */
+.rec { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+
+.rec__pill {
+  display: grid; place-items: center;
+  width: 40px; padding: 12px 0;
+  border: 0; border-radius: 9999px;
+  background: #1a1a1a;
+  cursor: pointer;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.38);
+}
+
+/* ---- waveform ---- */
+.wave {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  width: 26px;                     /* room for a bar at full length */
+}
+.wave__bar {
+  height: 3px;                     /* thickness — also the resting diameter */
+  flex: 0 0 3px;                   /* never let the column flex squash it oval */
+  border-radius: 9999px;           /* true circle at rest, true pill extended */
+  background: var(--fathom-400);
+  transition: width 0.055s linear;
+}
+
+.rec__error {
+  position: absolute; right: 44px; top: 50%;
+  transform: translateY(-50%);
+  max-width: 250px; padding: 9px 13px;
+  border-radius: 10px;
+  background: #4a1216; color: #ffd9d9;
+  font-size: 12px; line-height: 1.35;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.34);
+}
+
+/* ---- transcribe / polish status ---- */
+.rec__pill--busy { display: grid; place-items: center; width: 40px; padding: 18px 0; cursor: default; }
+.spinner {
+  width: 15px; height: 15px; flex: 0 0 15px;
+  border: 2px solid rgba(242, 241, 236, 0.25);
+  border-top-color: var(--fathom-400);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
