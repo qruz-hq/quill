@@ -6,6 +6,7 @@ type Prefs = {
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
   sttEngine: 'local' | 'cloud'; sttProvider: 'openai' | 'elevenlabs'; sttModel: string
   sttStreaming: boolean; sttNoVerbatim: boolean
+  launchAtLogin: boolean
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 

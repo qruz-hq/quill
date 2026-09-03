@@ -35,6 +35,11 @@ export class SttEngine extends EventEmitter {
   private pendingFinal: ((text: string) => void) | null = null
   private ready = false
 
+  /** True once the helper has announced itself. */
+  get isReady(): boolean {
+    return this.ready
+  }
+
   private get binaryPath(): string {
     // Packaged: a plain executable beside the main binary in Contents/MacOS,
     // so TCC treats the parent app as the permission subject (one grant, under

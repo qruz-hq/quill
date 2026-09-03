@@ -15,8 +15,8 @@ export default function DictationScreen(): React.JSX.Element {
 
   const refresh = (): void => {
     void window.flow.dictations.list().then(setRows as never)
-    void window.flow.dictations.insights().then((i: never) =>
-      setStats({ totalWords: i['totalWords'], wpm: i['wpm'], streak: i['streak'] }))
+    void window.flow.dictations.insights().then((i: Record<string, number>) =>
+      setStats({ totalWords: i.totalWords, wpm: i.wpm, streak: i.streak }))
   }
 
   // History is persisted, so it survives a restart; new dictations push in live.

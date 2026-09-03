@@ -9,6 +9,7 @@ type Prefs = {
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
   sttEngine: 'local' | 'cloud'; sttProvider: 'openai' | 'elevenlabs'; sttModel: string
   sttStreaming: boolean; sttNoVerbatim: boolean
+  launchAtLogin: boolean
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 
@@ -65,6 +66,16 @@ export default function Settings({ onClose }: { onClose: () => void }): React.JS
             <>
               <h2 className="sheet__title">General</h2>
               <div className="rows">
+                <Row
+                  title="Open at login"
+                  desc="Starts Quill in the background when you log in, so the hotkey works without launching it first."
+                >
+                  <Toggle
+                    on={prefs?.launchAtLogin ?? false}
+                    disabled={!prefs}
+                    onChange={(v) => void update({ launchAtLogin: v })}
+                  />
+                </Row>
                 <Row title="Shortcuts" desc="Hold-to-talk and the global hotkeys are configured under Shortcuts.">
                   <span className="pill">See Shortcuts</span>
                 </Row>

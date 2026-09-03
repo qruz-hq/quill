@@ -39,12 +39,20 @@ export const CATALOG: ModelInfo[] = [
   { id: 'base.en',             label: 'Base',                bytes:   147_964_211, wer: '2.9%', note: 'Good accuracy per megabyte. English only.' },
   { id: 'small-q5_1',          label: 'Small (compressed)',  bytes:   190_085_487, wer: '—',    note: 'Small accuracy for 190MB instead of 488MB.', multilingual: true, quantised: true },
   { id: 'small',               label: 'Small',               bytes:   487_601_967, wer: '—',    note: 'Understands ~99 languages.', multilingual: true },
-  { id: 'medium-q5_0',         label: 'Medium (compressed)', bytes:   539_212_467, wer: '—',    note: 'Stronger than Small outside English.', multilingual: true, quantised: true },
   { id: 'large-v3-turbo-q5_0', label: 'Turbo (compressed)',  bytes:   574_041_195, wer: '—',    note: 'Best non-English accuracy per megabyte. Recommended for French.', multilingual: true, quantised: true },
   { id: 'large-v3-turbo',      label: 'Turbo',               bytes: 1_624_555_275, wer: '—',    note: 'Most accurate, and the heaviest on memory.', multilingual: true }
 ]
 
 const BASE_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main'
+
+/**
+ * Models that were offered once and turn out not to work, so an installed copy
+ * has to be cleared rather than left selected and silently transcribing
+ * nothing. medium-q5_0 loads with the right dimensions and decodes zero tokens
+ * in every language; the local file is byte-identical to HuggingFace's, so the
+ * model itself is bad, not the download.
+ */
+export const RETIRED: Record<string, string> = { 'medium-q5_0': 'large-v3-turbo-q5_0' }
 
 export class ModelStore extends EventEmitter {
   private cancelled = new Set<ModelId>()
@@ -73,6 +81,22 @@ export class ModelStore extends EventEmitter {
    * leaves its temp file behind, silently occupying disk that nothing will ever
    * finish or clean up.
    */
+  /** Deletes any installed model that has since been retired as broken. */
+  sweepRetired(): { removed: string[]; bytes: number } {
+    const removed: string[] = []
+    let bytes = 0
+    for (const id of Object.keys(RETIRED)) {
+      const full = join(this.dir, `ggml-${id}.bin`)
+      try {
+        if (!existsSync(full)) continue
+        bytes += statSync(full).size
+        unlinkSync(full)
+        removed.push(id)
+      } catch { /* non-fatal */ }
+    }
+    return { removed, bytes }
+  }
+
   sweepPartials(): { removed: string[]; bytes: number } {
     const removed: string[] = []
     let bytes = 0

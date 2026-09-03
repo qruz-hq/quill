@@ -4,7 +4,6 @@ import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, chmodSync } from 'fs'
 
 const HOST = 'api.openai.com'
-const ENDPOINT = `https://${HOST}/v1/chat/completions`
 const keepAlive = new Agent({ keepAlive: true, keepAliveMsecs: 30_000, maxSockets: 4 })
 const MODELS_ENDPOINT = 'https://api.openai.com/v1/models'
 /** Hard ceiling for a request that has gone wrong. */

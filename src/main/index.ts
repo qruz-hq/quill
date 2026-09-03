@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, appendFileSync } from 'fs'
 import { userInfo, homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { SttEngine } from './stt'
-import { ModelStore, type ModelId } from './models'
+import { ModelStore, type ModelId, RETIRED } from './models'
 import { NoteStore } from './notes'
 import { SnippetStore } from './snippets'
 import { TransformStore } from './transforms'
@@ -42,9 +42,9 @@ function log(msg: string): void {
   console.log(msg)
 }
 
-type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
+type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; launchAtLogin: boolean; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
 const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json')
-const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
+const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, launchAtLogin: false, holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
 
 function loadSettings(): Settings {
   try {
@@ -128,7 +128,12 @@ async function stopDictation(): Promise<void> {
   // leaving the bar spinning for good.
   if (!raw.trim()) {
     voiceNoteMode = false
-    broadcast('dictation:error', 'Nothing was heard — is the microphone allowed?')
+    broadcast(
+      'dictation:error',
+      settings.sttEngine === 'local'
+        ? `Nothing came back from ${settings.model}. If this keeps happening, try a different speech model.`
+        : 'Nothing was heard — is the microphone allowed?'
+    )
     broadcast('dictation:stage', 'idle')
     log(`[timing] transcribe ${tTranscribed - tStop}ms | EMPTY transcript`)
     return
@@ -430,6 +435,18 @@ app.whenReady().then(() => {
     ipcMain.handle('updates:check', () => ({ current: app.getVersion(), newer: false }))
     ipcMain.handle('updates:prompt', () => ({ current: app.getVersion(), newer: false }))
   }
+  // A retired model left selected transcribes nothing and gives no clue why,
+  // so clear the file and move the setting to its replacement.
+  const retired = models.sweepRetired()
+  if (retired.removed.length) {
+    log(`[models] removed retired ${retired.removed.join(', ')} (${(retired.bytes / 1e6).toFixed(0)}MB)`)
+  }
+  if (RETIRED[settings.model]) {
+    const to = RETIRED[settings.model] as Settings['model']
+    log(`[models] ${settings.model} is retired — switching to ${to}`)
+    settings = { ...settings, model: to }
+    saveSettings(settings)
+  }
   const swept = models.sweepPartials()
   if (swept.removed.length) {
     log(`[flow] cleared ${swept.removed.length} interrupted download(s), ${(swept.bytes / 1e6).toFixed(0)} MB`)
@@ -442,6 +459,8 @@ app.whenReady().then(() => {
   stt.setLanguage(settings.languages)
   applyDuck()
   stt.setHoldKey(settings.holdKey)
+  app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, openAsHidden: true })
+  log(`[flow] open at login: want=${settings.launchAtLogin} os=${app.getLoginItemSettings().openAtLogin}`)
   stt.setEngine(settings.sttEngine)
   stt.setStreaming(streamingWanted())
 
@@ -462,8 +481,9 @@ app.whenReady().then(() => {
         return streamed
       }
       // Nothing came back — fall through to the batch upload, which still has
-      // the WAV, so a dead socket costs latency rather than the dictation.
-      broadcast('dictation:error', 'Live transcription came back empty — retrying the upload')
+      // the WAV, so a dead socket costs latency rather than the dictation. No
+      // error is surfaced: the retry is silent and usually succeeds, and an
+      // empty commit most often just means nothing was said.
     }
 
     const provider = settings.sttProvider
@@ -585,6 +605,9 @@ app.whenReady().then(() => {
     if (patch.languages !== undefined) stt.setLanguage(patch.languages)
     if (patch.duckEnabled !== undefined || patch.duckLevel !== undefined) applyDuck()
     if (patch.holdKey !== undefined) stt.setHoldKey(patch.holdKey)
+    if (patch.launchAtLogin !== undefined) {
+      app.setLoginItemSettings({ openAtLogin: patch.launchAtLogin, openAsHidden: true })
+    }
     if (patch.sttEngine !== undefined) stt.setEngine(patch.sttEngine)
     // Provider, key and engine all gate streaming, so re-evaluate on any change.
     stt.setStreaming(streamingWanted())
