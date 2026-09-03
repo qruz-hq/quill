@@ -1,6 +1,6 @@
 {
   "name": "quill",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Local-first dictation for macOS",
   "main": "./out/main/index.js",
   "author": "",
@@ -9,7 +9,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "stt:build": "swiftc -O -framework Speech -framework AVFoundation -framework CoreAudio -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker native/stt/Info.plist -o /tmp/flow-stt native/stt/main.swift && rm -rf resources/FlowSTT.app && mkdir -p resources/FlowSTT.app/Contents/MacOS && cp native/stt/Info.plist resources/FlowSTT.app/Contents/Info.plist && cp /tmp/flow-stt resources/FlowSTT.app/Contents/MacOS/flow-stt && codesign --force --deep --sign - --identifier studio.saudad.quill.stt resources/FlowSTT.app",
+    "stt:build": "swiftc -O -target arm64-apple-macosx14.0 -framework Speech -framework AVFoundation -framework CoreAudio -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker native/stt/Info.plist -o /tmp/flow-stt native/stt/main.swift && rm -rf resources/FlowSTT.app && mkdir -p resources/FlowSTT.app/Contents/MacOS && cp native/stt/Info.plist resources/FlowSTT.app/Contents/Info.plist && cp /tmp/flow-stt resources/FlowSTT.app/Contents/MacOS/flow-stt && codesign --force --deep --sign - --identifier studio.saudad.quill.stt resources/FlowSTT.app",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "package": "bun run whisper:fixrpath && electron-vite build && electron-builder --mac --dir",
     "release": "bun run whisper:fixrpath && electron-vite build && electron-builder --mac --publish always",

@@ -21,7 +21,7 @@ func logLine(_ text: String) {
     let stamp = ISO8601DateFormatter().string(from: Date())
     let line = "[\(stamp)] \(text)\n"
     stdoutQueue.async {
-        guard let data = line.data(using: .utf8) else { return }
+        let data = Data(line.utf8)
         let fm = FileManager.default
         let dir = logURL.deletingLastPathComponent()
         if !fm.fileExists(atPath: dir.path) {
@@ -396,10 +396,10 @@ final class Recognizer {
         var d = Data()
         let sr: UInt32 = 16_000, bytes = UInt32(audio.count * 2)
         func le<T: FixedWidthInteger>(_ v: T) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
-        d.append("RIFF".data(using: .ascii)!); le(UInt32(36 + bytes)); d.append("WAVE".data(using: .ascii)!)
-        d.append("fmt ".data(using: .ascii)!); le(UInt32(16)); le(UInt16(1)); le(UInt16(1))
+        d.append(Data("RIFF".utf8)); le(UInt32(36 + bytes)); d.append(Data("WAVE".utf8))
+        d.append(Data("fmt ".utf8)); le(UInt32(16)); le(UInt16(1)); le(UInt16(1))
         le(sr); le(sr * 2); le(UInt16(2)); le(UInt16(16))
-        d.append("data".data(using: .ascii)!); le(bytes)
+        d.append(Data("data".utf8)); le(bytes)
         for f in audio { le(Int16(max(-1, min(1, f)) * 32767)) }
         do { try d.write(to: url); return true } catch { return false }
     }
