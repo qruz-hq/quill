@@ -933,8 +933,7 @@ DispatchQueue.global(qos: .userInitiated).async {
             }
             if line.hasPrefix("cal ") {
                 let json = String(line.dropFirst("cal ".count))
-                if let data = json.data(using: .utf8),
-                   let a = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                if let a = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any],
                    let id = a["id"] as? String, let op = a["op"] as? String {
                     switch op {
                     case "status":    Calendar.reply(id, ["status": Calendar.status])
