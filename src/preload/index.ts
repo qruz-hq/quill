@@ -6,7 +6,7 @@ type Prefs = {
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
   sttEngine: 'local' | 'cloud'; sttProvider: 'openai' | 'elevenlabs'; sttModel: string
   sttStreaming: boolean; sttNoVerbatim: boolean
-  launchAtLogin: boolean
+  launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 
@@ -40,6 +40,32 @@ const api = {
       ipcRenderer.invoke('notes:update', id, patch),
     remove: (id: string) => ipcRenderer.invoke('notes:remove', id),
     onChanged: (cb: (n: unknown[]) => void) => sub('notes:changed', cb)
+  },
+  todos: {
+    list: () => ipcRenderer.invoke('todos:list'),
+    add: (input: { title: string; description?: string; due?: string | null; time?: string | null }) =>
+      ipcRenderer.invoke('todos:add', input),
+    update: (id: string, patch: { title?: string; description?: string; due?: string | null; time?: string | null; done?: boolean }) =>
+      ipcRenderer.invoke('todos:update', id, patch),
+    remove: (id: string) => ipcRenderer.invoke('todos:remove', id),
+    reorder: (ids: string[]) => ipcRenderer.invoke('todos:reorder', ids),
+    clearDone: (): Promise<number> => ipcRenderer.invoke('todos:clearDone'),
+    projects: (): Promise<{ name: string; count: number }[]> => ipcRenderer.invoke('todos:projects'),
+    collapsed: (): Promise<string[]> => ipcRenderer.invoke('todos:collapsed'),
+    collapse: (project: string, v: boolean): Promise<string[]> => ipcRenderer.invoke('todos:collapse', project, v),
+    open: () => ipcRenderer.send('todos:open'),
+    close: () => ipcRenderer.send('todos:close'),
+    pin: (v: boolean): Promise<boolean> => ipcRenderer.invoke('todos:pin', v),
+    pinned: (): Promise<boolean> => ipcRenderer.invoke('todos:pinned'),
+    onChanged: (cb: (t: unknown[]) => void) => sub('todos:changed', cb)
+  },
+  calendar: {
+    status: (): Promise<'granted' | 'writeOnly' | 'denied' | 'notDetermined' | 'unknown'> => ipcRenderer.invoke('cal:status'),
+    request: (): Promise<'granted' | 'writeOnly' | 'denied' | 'notDetermined' | 'unknown'> => ipcRenderer.invoke('cal:request'),
+    calendars: (): Promise<{ id: string; title: string; source: string; color: string; isDefault: boolean }[]> =>
+      ipcRenderer.invoke('cal:calendars'),
+    backfill: (): Promise<number> => ipcRenderer.invoke('cal:backfill'),
+    openSettings: () => ipcRenderer.send('cal:openSettings')
   },
   eleven: {
     status: (): Promise<{ hasKey: boolean; masked: string | null }> => ipcRenderer.invoke('eleven:status'),

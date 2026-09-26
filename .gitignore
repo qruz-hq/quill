@@ -15,3 +15,6 @@ resources/FlowSTT.app/
 
 # Local toolchain scratch (cmake tarball, whisper.cpp checkout)
 .build/
+
+# TypeScript incremental build state — regenerated on every build
+*.tsbuildinfo

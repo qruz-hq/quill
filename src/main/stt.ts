@@ -12,6 +12,7 @@ type Msg =
   | { type: 'hotkey-status'; installed: boolean; reason?: string }
   | { type: 'audio'; path: string; seconds: number }
   | { type: 'chunk'; b64: string }
+  | { type: 'cal'; id: string; [k: string]: unknown }
   | { type: 'partial' | 'final'; text: string }
   | { type: 'level'; value: number }
   | { type: 'error'; message: string }
@@ -29,6 +30,8 @@ export class SttEngine extends EventEmitter {
   audioHandler: ((path: string, seconds: number) => Promise<string | null>) | null = null
   /** Streaming mode: raw PCM16 arriving while the user is still speaking. */
   chunkHandler: ((b64: string) => void) | null = null
+  /** In-flight `cal` requests, keyed by id. */
+  private pendingCal = new Map<string, (r: Record<string, unknown>) => void>()
 
   private proc: ChildProcessWithoutNullStreams | null = null
   private buffer = ''
@@ -124,6 +127,12 @@ export class SttEngine extends EventEmitter {
       case 'chunk':
         this.chunkHandler?.(msg.b64)
         break
+      case 'cal': {
+        const { type: _t, id, ...rest } = msg
+        this.pendingCal.get(id)?.(rest)
+        this.pendingCal.delete(id)
+        break
+      }
       case 'final':
         this.emit('final', msg.text)
         this.pendingFinal?.(msg.text)
@@ -169,6 +178,22 @@ export class SttEngine extends EventEmitter {
   /** 'local' transcribes in the helper; 'cloud' hands the audio to audioHandler. */
   setEngine(mode: 'local' | 'cloud'): void {
     this.ensureProcess().stdin.write(`engine ${mode}\n`)
+  }
+
+  /**
+   * Calendar ops go through the helper because EventKit is native-only.
+   * One JSON line out, one `cal` line back with the same id.
+   */
+  calendar(op: string, args: Record<string, unknown> = {}, timeoutMs = 15_000): Promise<Record<string, unknown>> {
+    const id = `c${Date.now()}${Math.floor(Math.random() * 1e6)}`
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingCal.delete(id)
+        resolve({ error: 'timed out' })
+      }, timeoutMs)
+      this.pendingCal.set(id, (r) => { clearTimeout(timer); resolve(r) })
+      this.ensureProcess().stdin.write(`cal ${JSON.stringify({ id, op, ...args })}\n`)
+    })
   }
 
   /** Streaming ships PCM during capture instead of only a WAV at the end. */

@@ -9,6 +9,7 @@ import AVFoundation
 import AppKit
 import CoreGraphics
 import CoreAudio
+import EventKit
 
 let stdoutQueue = DispatchQueue(label: "stdout")
 
@@ -742,6 +743,106 @@ nonisolated(unsafe) var modelPath = ""
 /// let whisper pick from all 99.
 nonisolated(unsafe) var languages = ["en"]
 /// "local" runs whisper here; "cloud" hands the audio file to the app to upload.
+/// Todos -> Calendar.app, through EventKit.
+///
+/// Lives in the helper because Electron cannot call EventKit and a native
+/// Node module would mean a second toolchain. Every command carries an `id`
+/// and answers with `{"type":"cal","id":…}` so the app can await it.
+///
+/// Full access rather than write-only on purpose: write-only cannot fetch an
+/// event by identifier afterwards, so every edit would create a duplicate.
+enum Calendar {
+    static let store = EKEventStore()
+
+    static var status: String {
+        switch EKEventStore.authorizationStatus(for: .event) {
+        case .fullAccess:  return "granted"
+        case .writeOnly:   return "writeOnly"
+        case .denied, .restricted: return "denied"
+        default:           return "notDetermined"
+        }
+    }
+
+    static func reply(_ id: String, _ extra: [String: Any]) {
+        var p: [String: Any] = ["type": "cal", "id": id]
+        for (k, v) in extra { p[k] = v }
+        emit(p)
+    }
+
+    static func request(_ id: String) {
+        store.requestFullAccessToEvents { ok, err in
+            logLine("calendar: access \(ok ? "granted" : "refused")\(err.map { " (\($0.localizedDescription))" } ?? "")")
+            reply(id, ["status": status])
+        }
+    }
+
+    static func calendars(_ id: String) {
+        guard status == "granted" else { reply(id, ["error": "no access", "status": status]); return }
+        let def = store.defaultCalendarForNewEvents?.calendarIdentifier ?? ""
+        let list: [[String: Any]] = store.calendars(for: .event)
+            .filter { $0.allowsContentModifications }
+            .map { ["id": $0.calendarIdentifier, "title": $0.title,
+                    "source": $0.source.title, "color": $0.color.map { hex($0) } ?? "",
+                    "isDefault": $0.calendarIdentifier == def] }
+        reply(id, ["calendars": list])
+    }
+
+    /// Creates or updates. `date` is YYYY-MM-DD, `time` HH:MM or empty for all-day.
+    static func upsert(_ id: String, _ a: [String: Any]) {
+        guard status == "granted" else { reply(id, ["error": "no access", "status": status]); return }
+        let title = a["title"] as? String ?? ""
+        let date = a["date"] as? String ?? ""
+        let time = a["time"] as? String ?? ""
+        let notes = a["notes"] as? String ?? ""
+        let minutes = a["minutes"] as? Int ?? 30
+        let calId = a["calendarId"] as? String ?? ""
+        let eventId = a["eventId"] as? String ?? ""
+
+        let parts = date.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { reply(id, ["error": "bad date"]); return }
+        var comps = DateComponents(year: parts[0], month: parts[1], day: parts[2])
+        let allDay = time.isEmpty
+        if !allDay {
+            let hm = time.split(separator: ":").compactMap { Int($0) }
+            guard hm.count == 2 else { reply(id, ["error": "bad time"]); return }
+            comps.hour = hm[0]; comps.minute = hm[1]
+        }
+        guard let start = Foundation.Calendar.current.date(from: comps) else { reply(id, ["error": "bad date"]); return }
+
+        let event = (eventId.isEmpty ? nil : store.event(withIdentifier: eventId)) ?? EKEvent(eventStore: store)
+        event.title = title
+        event.notes = notes.isEmpty ? nil : notes
+        event.isAllDay = allDay
+        event.startDate = start
+        event.endDate = allDay ? start : start.addingTimeInterval(TimeInterval(minutes * 60))
+        // An existing event keeps its calendar unless the app asked to move it.
+        if event.calendar == nil || (!calId.isEmpty && event.calendar.calendarIdentifier != calId) {
+            event.calendar = store.calendars(for: .event).first { $0.calendarIdentifier == calId }
+                ?? store.defaultCalendarForNewEvents
+        }
+        // No alarm: the user chose to keep the calendar quiet.
+        event.alarms = nil
+        do {
+            try store.save(event, span: .thisEvent, commit: true)
+            reply(id, ["eventId": event.eventIdentifier ?? "", "calendarId": event.calendar.calendarIdentifier])
+        } catch {
+            reply(id, ["error": error.localizedDescription])
+        }
+    }
+
+    static func delete(_ id: String, _ eventId: String) {
+        guard status == "granted" else { reply(id, ["error": "no access", "status": status]); return }
+        guard let event = store.event(withIdentifier: eventId) else { reply(id, ["gone": true]); return }
+        do { try store.remove(event, span: .thisEvent, commit: true); reply(id, ["gone": true]) }
+        catch { reply(id, ["error": error.localizedDescription]) }
+    }
+
+    private static func hex(_ color: NSColor) -> String {
+        guard let c = color.usingColorSpace(.sRGB) else { return "" }
+        return String(format: "#%02x%02x%02x", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
+    }
+}
+
 /// Named sttEngine because Recognizer already has an `engine` (the AVAudioEngine).
 nonisolated(unsafe) var sttEngine = "local"
 /// Ship PCM to the app while recording so the upload finishes with the speech.
@@ -828,6 +929,21 @@ DispatchQueue.global(qos: .userInitiated).async {
             if line.hasPrefix("doubletap-ms ") {
                 if let v = Double(line.dropFirst("doubletap-ms ".count)) {
                     HotkeyMonitor.shared.doubleTapWindow = v / 1000
+                }
+            }
+            if line.hasPrefix("cal ") {
+                let json = String(line.dropFirst("cal ".count))
+                if let data = json.data(using: .utf8),
+                   let a = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                   let id = a["id"] as? String, let op = a["op"] as? String {
+                    switch op {
+                    case "status":    Calendar.reply(id, ["status": Calendar.status])
+                    case "request":   Calendar.request(id)
+                    case "calendars": Calendar.calendars(id)
+                    case "upsert":    Calendar.upsert(id, a)
+                    case "delete":    Calendar.delete(id, a["eventId"] as? String ?? "")
+                    default:          Calendar.reply(id, ["error": "unknown op \(op)"])
+                    }
                 }
             }
             if line.hasPrefix("insert ") {

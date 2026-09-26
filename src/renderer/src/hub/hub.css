@@ -399,6 +399,7 @@ body { background: var(--sand-300); overflow: hidden; }
   background: var(--dawn-100);
   font-size: 12.5px; line-height: 1.45; color: var(--text-primary);
 }
+.sheet__warn--denied { background: #fdf1f1; color: var(--destructive-700); }
 
 /* ---- languages ---- */
 .sheet__titleRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }

@@ -9,7 +9,7 @@ type Prefs = {
   aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean
   sttEngine: 'local' | 'cloud'; sttProvider: 'openai' | 'elevenlabs'; sttModel: string
   sttStreaming: boolean; sttNoVerbatim: boolean
-  launchAtLogin: boolean
+  launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string
   holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string
 }
 
@@ -76,6 +76,16 @@ export default function Settings({ onClose }: { onClose: () => void }): React.JS
                     onChange={(v) => void update({ launchAtLogin: v })}
                   />
                 </Row>
+                <Row
+                  title="Todos on the left edge"
+                  desc="Rest the cursor on the left edge of the screen for a second to open your todo list. It closes when the cursor leaves."
+                >
+                  <Toggle
+                    on={prefs?.todoEdge ?? true}
+                    disabled={!prefs}
+                    onChange={(v) => void update({ todoEdge: v })}
+                  />
+                </Row>
                 <Row title="Shortcuts" desc="Hold-to-talk and the global hotkeys are configured under Shortcuts.">
                   <span className="pill">See Shortcuts</span>
                 </Row>
@@ -122,6 +132,7 @@ export default function Settings({ onClose }: { onClose: () => void }): React.JS
                   <span className="pill">Verbatim</span>
                 </Row>
               </div>
+              <CalendarRows prefs={prefs} update={update} />
             </>
           )}
 
@@ -755,6 +766,83 @@ function Models({ prefs, onSelect, onEngine, onSttModel, onProvider, update }: {
       <p className="sheet__note">
         Models are downloaded only when you choose them, and stored in Application Support. Delete any you don’t use.
       </p>
+    </>
+  )
+}
+
+type CalStatus = 'granted' | 'writeOnly' | 'denied' | 'notDetermined' | 'unknown'
+type CalInfo = { id: string; title: string; source: string; color: string; isDefault: boolean }
+
+/**
+ * Todos -> Calendar. Turning it on asks macOS for access first; the toggle
+ * only lands if access is granted, so it never sits "on" while doing nothing.
+ */
+function CalendarRows({ prefs, update }: {
+  prefs: Prefs | null
+  update: (patch: Partial<Prefs>) => Promise<void>
+}): React.JSX.Element {
+  const [status, setStatus] = useState<CalStatus>('unknown')
+  const [cals, setCals] = useState<CalInfo[]>([])
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+
+  const load = async (): Promise<void> => {
+    const st = await window.flow.calendar.status()
+    setStatus(st)
+    if (st === 'granted') setCals(await window.flow.calendar.calendars())
+  }
+  useEffect(() => { void load() }, [])
+
+  const enable = async (on: boolean): Promise<void> => {
+    if (!on) { await update({ calSync: false }); return }
+    setBusy(true)
+    try {
+      let st = status
+      if (st !== 'granted') st = await window.flow.calendar.request()
+      setStatus(st)
+      if (st !== 'granted') return
+      const list = await window.flow.calendar.calendars()
+      setCals(list)
+      const def = list.find((c) => c.isDefault)?.id ?? list[0]?.id ?? ''
+      await update({ calSync: true, calId: prefs?.calId || def })
+      const n = await window.flow.calendar.backfill()
+      setNote(n ? `Added ${n} dated todo${n === 1 ? '' : 's'} to your calendar.` : null)
+    } finally { setBusy(false) }
+  }
+
+  const denied = status === 'denied' || status === 'writeOnly'
+  return (
+    <>
+      <div className="rows" style={{ marginTop: 16 }}>
+        <Row
+          title="Add dated todos to Calendar"
+          desc="Every todo with a date becomes an event. Edits and deletions follow it; done todos get a ✓ in the title. Quill only writes, but macOS asks for full access so it can update its own events."
+        >
+          <Toggle on={!!prefs?.calSync} disabled={!prefs || busy} onChange={(v) => void enable(v)} />
+        </Row>
+        {prefs?.calSync && (
+          <Row title="Calendar" desc="Where the events go. Anything in Calendar.app works, including Google.">
+            <select
+              className="modelinput"
+              value={prefs.calId}
+              onChange={(e) => void update({ calId: e.target.value })}
+            >
+              {cals.map((c) => (
+                <option key={c.id} value={c.id}>{c.title} · {c.source}</option>
+              ))}
+            </select>
+          </Row>
+        )}
+      </div>
+      {note && <p className="sheet__note">{note}</p>}
+      {denied && (
+        <div className="sheet__warn sheet__warn--denied" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ flex: 1 }}>
+            Calendar access is off for Quill. Allow it under System Settings › Privacy & Security › Calendars, then switch the toggle back on.
+          </span>
+          <button className="btn btn--ghost" onClick={() => window.flow.calendar.openSettings()}>Open Settings</button>
+        </div>
+      )}
     </>
   )
 }

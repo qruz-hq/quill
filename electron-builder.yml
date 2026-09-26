@@ -36,6 +36,7 @@ mac:
   extendInfo:
     NSMicrophoneUsageDescription: Quill needs the microphone to turn your speech into text.
     NSSpeechRecognitionUsageDescription: Quill uses on-device speech recognition to transcribe your dictation.
+    NSCalendarsFullAccessUsageDescription: Quill adds your dated todos to Calendar and keeps them in step when you edit or finish them.
     LSUIElement: false
 
 publish:

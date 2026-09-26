@@ -13,7 +13,8 @@ export default defineConfig({
         input: {
           hub: resolve(__dirname, 'src/renderer/hub.html'),
           flowbar: resolve(__dirname, 'src/renderer/flowbar.html'),
-          scratchpad: resolve(__dirname, 'src/renderer/scratchpad.html')
+          scratchpad: resolve(__dirname, 'src/renderer/scratchpad.html'),
+          todos: resolve(__dirname, 'src/renderer/todos.html')
         }
       }
     }

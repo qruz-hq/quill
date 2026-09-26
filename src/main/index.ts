@@ -12,6 +12,9 @@ import { DictationStore } from './dictations'
 import { Cleanup } from './cleanup'
 import { transcribeCloud, discard, audioSizeMB, type Provider } from './transcribe'
 import { RealtimeStream } from './stream'
+import { TodoStore, type Todo, type TodoPatch } from './todos'
+import { EdgeDwell } from './edge'
+import { CalendarSync } from './calendar'
 import { Secrets } from './secrets'
 import { checkForUpdate, promptIfNewer } from './updates'
 
@@ -21,6 +24,7 @@ const HUB = { width: 1350, height: 850, minWidth: 1000, minHeight: 640 }
 /* The bar window is only ever as large as what it draws, so the transparent
    area never has to swallow or forward clicks. */
 const PAD = { width: 620, height: 460 }
+const TODOS = { width: 360, height: 520 }
 const BAR_IDLE = { width: 16, height: 90 }
 const BAR_OPEN = { width: 340, height: 260 }
 type BarMode = 'idle' | 'expanded' | 'recording'
@@ -28,6 +32,7 @@ type BarMode = 'idle' | 'expanded' | 'recording'
 let hubWindow: BrowserWindow | null = null
 let barWindow: BrowserWindow | null = null
 let padWindow: BrowserWindow | null = null
+let todosWindow: BrowserWindow | null = null
 let lastTranscript = ''
 let tray: Tray | null = null
 let recording = false
@@ -42,9 +47,9 @@ function log(msg: string): void {
   console.log(msg)
 }
 
-type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; launchAtLogin: boolean; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
+type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string; holdKey: number; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string }
 const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json')
-const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, launchAtLogin: false, holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
+const DEFAULTS: Settings = { model: 'base.en', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, launchAtLogin: false, todoEdge: true, calSync: false, calId: '', holdKey: 63, toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '' }
 
 function loadSettings(): Settings {
   try {
@@ -261,6 +266,8 @@ function buildTray(): void {
 const stt = new SttEngine()
 const models = new ModelStore()
 const notes = new NoteStore()
+const todos = new TodoStore()
+const cal = new CalendarSync(stt, todos, (l) => log(l))
 const snippets = new SnippetStore()
 const transforms = new TransformStore()
 const dictations = new DictationStore()
@@ -352,7 +359,51 @@ function openScratchpad(): void {
   loadRoute(padWindow, 'scratchpad')
 }
 
-function loadRoute(win: BrowserWindow, route: 'hub' | 'flowbar' | 'scratchpad'): void {
+/**
+ * Opens beside the left edge with the cursor already inside it. Shown without
+ * focus: resting on the edge should not yank the keyboard away from whatever
+ * you were typing in — a click on the composer takes focus when you want it.
+ */
+function openTodos(cursor?: { x: number; y: number }): void {
+  if (todosWindow && !todosWindow.isDestroyed()) {
+    todosWindow.showInactive()
+    return
+  }
+  const display = cursor ? screen.getDisplayNearestPoint(cursor) : screen.getPrimaryDisplay()
+  const { workArea } = display
+  const cy = cursor?.y ?? workArea.y + workArea.height / 2
+  const y = Math.max(workArea.y + 8, Math.min(cy - 60, workArea.y + workArea.height - TODOS.height - 8))
+  todosWindow = new BrowserWindow({
+    ...TODOS,
+    x: workArea.x + 8,
+    y: Math.round(y),
+    show: false,
+    frame: false,
+    transparent: true,
+    hasShadow: true,
+    resizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: false }
+  })
+  todosWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  todosWindow.once('ready-to-show', () => todosWindow?.showInactive())
+  todosWindow.on('closed', () => { todosWindow = null; edge.attach(null) })
+  edge.attach(todosWindow)
+  loadRoute(todosWindow, 'todos')
+}
+
+function closeTodos(): void {
+  if (todosWindow && !todosWindow.isDestroyed()) todosWindow.close()
+}
+
+const edge = new EdgeDwell({
+  open: (cursor) => openTodos(cursor),
+  close: () => closeTodos(),
+  log: (l) => log(l)
+})
+
+function loadRoute(win: BrowserWindow, route: 'hub' | 'flowbar' | 'scratchpad' | 'todos'): void {
   win.webContents.on('console-message', (_e, level, message, line, source) => {
     console.log(`[${route}:${level}] ${message}  (${source}:${line})`)
   })
@@ -460,6 +511,9 @@ app.whenReady().then(() => {
   applyDuck()
   stt.setHoldKey(settings.holdKey)
   app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, openAsHidden: true })
+  edge.setEnabled(settings.todoEdge)
+  edge.start()
+  cal.configure(settings.calSync, settings.calId)
   log(`[flow] open at login: want=${settings.launchAtLogin} os=${app.getLoginItemSettings().openAtLogin}`)
   stt.setEngine(settings.sttEngine)
   stt.setStreaming(streamingWanted())
@@ -528,6 +582,59 @@ app.whenReady().then(() => {
     broadcast('notes:changed', notes.list())
     return notes.list()
   })
+
+  /* ---- Todos ---- */
+  const todosChanged = (): void => broadcast('todos:changed', todos.list())
+  // The calendar follows the todo; the todo never waits for the calendar.
+  const syncLater = (t: Todo | null | undefined): void => {
+    if (!t) return
+    void cal.sync(t).then(todosChanged)
+  }
+  ipcMain.handle('todos:list', () => todos.list())
+  ipcMain.handle('todos:add', (_e, input: { title: string; description?: string; due?: string | null; time?: string | null }) => {
+    const t = todos.add(input)
+    todosChanged()
+    syncLater(t)
+    return t
+  })
+  ipcMain.handle('todos:update', (_e, id: string, patch: TodoPatch) => {
+    const t = todos.update(id, patch)
+    todosChanged()
+    syncLater(t)
+    return t
+  })
+  ipcMain.handle('todos:remove', (_e, id: string) => {
+    const t = todos.list().find((x) => x.id === id)
+    todos.remove(id)
+    todosChanged()
+    if (t?.eventId) void cal.removeEvent(t.eventId, t.title)
+  })
+  ipcMain.handle('todos:reorder', (_e, ids: string[]) => { todos.reorder(ids); todosChanged() })
+  ipcMain.handle('todos:clearDone', () => {
+    const gone = todos.clearDone()
+    todosChanged()
+    for (const t of gone) if (t.eventId) void cal.removeEvent(t.eventId, t.title)
+    return gone.length
+  })
+
+  /* ---- Calendar ---- */
+  ipcMain.handle('cal:status', () => cal.status())
+  ipcMain.handle('cal:request', () => cal.requestAccess())
+  ipcMain.handle('cal:calendars', () => cal.calendars())
+  ipcMain.handle('cal:backfill', async () => { const n = await cal.backfill(); todosChanged(); return n })
+  ipcMain.on('cal:openSettings', () => {
+    void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars')
+  })
+  ipcMain.handle('todos:projects', () => todos.projects())
+  ipcMain.handle('todos:collapsed', () => todos.collapsedProjects())
+  ipcMain.handle('todos:collapse', (_e, project: string, v: boolean) => {
+    todos.setCollapsed(project, v)
+    return todos.collapsedProjects()
+  })
+  ipcMain.on('todos:open', () => openTodos())
+  ipcMain.on('todos:close', () => closeTodos())
+  ipcMain.handle('todos:pin', (_e, v: boolean) => { edge.setPinned(v); return edge.isPinned })
+  ipcMain.handle('todos:pinned', () => edge.isPinned)
 
   /* ---- Cloud cleanup ---- */
   ipcMain.handle('cleanup:status', () => ({
@@ -607,6 +714,10 @@ app.whenReady().then(() => {
     if (patch.holdKey !== undefined) stt.setHoldKey(patch.holdKey)
     if (patch.launchAtLogin !== undefined) {
       app.setLoginItemSettings({ openAtLogin: patch.launchAtLogin, openAsHidden: true })
+    }
+    if (patch.todoEdge !== undefined) edge.setEnabled(patch.todoEdge)
+    if (patch.calSync !== undefined || patch.calId !== undefined) {
+      cal.configure(settings.calSync, settings.calId)
     }
     if (patch.sttEngine !== undefined) stt.setEngine(patch.sttEngine)
     // Provider, key and engine all gate streaming, so re-evaluate on any change.

@@ -1,0 +1,287 @@
+/* Todos — the left-edge window. Same shell as the Scratchpad: sand body,
+   white cards, 14px radius. Sizes follow the design file 1:1. */
+
+html, body, #root { height: 100%; margin: 0; background: transparent; }
+.todos-body { overflow: hidden; }
+
+.todos {
+  height: 100vh;
+  display: flex; flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--sand-200);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- title bar ---- */
+.todos__bar {
+  display: flex; align-items: center; gap: 8px;
+  height: 40px; flex: 0 0 40px;
+  padding: 0 10px 0 12px;
+  -webkit-app-region: drag;
+}
+.todos__bar button { -webkit-app-region: no-drag; }
+.todos__mark { color: var(--text-primary); flex: 0 0 auto; }
+.todos__title {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+.todos__count {
+  padding: 3px 9px; border-radius: 9999px;
+  background: var(--sand-600);
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+}
+.todos__icon {
+  width: 26px; height: 26px; flex: 0 0 26px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-secondary);
+  cursor: pointer;
+}
+.todos__icon:hover { background: rgba(0, 0, 0, 0.06); color: var(--text-primary); }
+.todos__icon.is-on { background: var(--sand-600); color: var(--text-primary); }
+.todos__icon svg { width: 14px; height: 14px; }
+
+/* ---- body ---- */
+.todos__body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 4px 12px 12px;
+}
+
+/* ---- composer ---- */
+.composer {
+  display: flex; align-items: center; gap: 10px;
+  height: 40px; flex: 0 0 40px; padding: 0 14px;
+  border: 0; border-radius: 10px;
+  background: var(--sand-100);
+  font: inherit; font-size: 13.5px; color: var(--text-tertiary);
+  text-align: left; cursor: text;
+}
+.composer:hover { background: var(--sand-300); }
+.composer svg { width: 15px; height: 15px; flex: 0 0 15px; }
+
+.composer--open {
+  position: relative;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--focus); border-radius: 12px;
+  background: var(--bg-content);
+}
+.composer__title, .composer__desc {
+  width: 100%; border: 0; padding: 0;
+  background: transparent; outline: none; resize: none;
+  font: inherit; color: var(--text-primary);
+}
+.composer__title { font-size: 14px; font-weight: 550; line-height: 1.35; }
+.composer__desc { font-size: 12.5px; line-height: 1.45; }
+.composer__title::placeholder, .composer__desc::placeholder { color: var(--text-tertiary); }
+.composer__foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: 4px;
+}
+.composer__foot .btns { display: flex; gap: 8px; }
+
+/* ---- date chip (also the composer's date picker) ---- */
+.chip {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: 0; border-radius: 9999px;
+  background: var(--sand-600);
+  font: inherit; font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  white-space: nowrap; cursor: default;
+}
+.chip svg { width: 11px; height: 11px; }
+.chip--overdue { background: #fdf1f1; color: var(--destructive-700); }
+.chip--pick { cursor: pointer; }
+.chip--pick:hover { background: var(--sand-700); color: var(--text-primary); }
+.chip--overdue.chip--pick:hover { background: #f8dede; }
+.chip--empty { background: transparent; border: 1px solid var(--vast-200); color: var(--text-tertiary); padding: 2px 7px; }
+.chip--empty:hover { background: var(--sand-100); }
+/* On an item the "+ date" affordance only appears on hover, so the list stays quiet. */
+.chip--hover { opacity: 0; }
+.item:hover .chip--hover { opacity: 1; }
+/* A dot means the todo is on the calendar. */
+.chip__dot { width: 5px; height: 5px; margin-left: 2px; border-radius: 50%; background: var(--fathom-700); }
+
+/* ---- item ---- */
+.item {
+  position: relative;
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px 12px 8px;
+  border: 1px solid var(--border-subtle); border-radius: 12px;
+  background: var(--bg-content);
+  transition: opacity var(--spring-duration) ease, transform var(--spring-duration) ease;
+}
+.item.is-done { opacity: 0.6; }
+.item.is-dragging { opacity: 0.35; }
+.item.is-over { box-shadow: 0 -2px 0 0 var(--focus); }
+
+.item__grip {
+  flex: 0 0 14px; width: 14px; height: 14px; margin-top: 2px;
+  color: var(--vast-300); cursor: grab;
+}
+.item__grip:active { cursor: grabbing; }
+
+.check {
+  flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--vast-200); border-radius: 50%;
+  background: transparent; cursor: pointer; padding: 0;
+  transition: background var(--spring-duration) ease, border-color var(--spring-duration) ease;
+}
+.check:hover { border-color: var(--vast-300); }
+.check.is-on { background: #1c1c1a; border-color: #1c1c1a; }
+.check svg { width: 11px; height: 11px; color: #fff; }
+
+.item__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.item__title { font-size: 14px; font-weight: 550; line-height: 1.35; color: var(--text-primary); word-wrap: break-word; }
+.is-done .item__title { text-decoration: line-through; color: var(--text-tertiary); }
+.item__prefix { color: var(--text-tertiary); }
+.item__desc { font-size: 12.5px; line-height: 1.45; color: var(--text-secondary); white-space: pre-wrap; }
+.item__meta { display: flex; align-items: center; gap: 6px; padding-top: 4px; }
+
+.item__del {
+  position: absolute; top: 8px; right: 8px;
+  display: none; width: 22px; height: 22px;
+  border: 0; border-radius: 6px;
+  background: var(--sand-100); color: var(--destructive-700);
+  cursor: pointer;
+}
+.item__del svg { width: 13px; height: 13px; }
+.item:hover .item__del { display: grid; place-items: center; }
+
+/* ---- completed ---- */
+.done-head {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 32px; padding: 0 6px;
+}
+.done-head__toggle {
+  display: flex; align-items: center; gap: 6px;
+  border: 0; background: transparent; padding: 0;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  cursor: pointer;
+}
+.done-head__toggle svg { width: 14px; height: 14px; color: var(--text-tertiary); }
+.done-head__clear {
+  border: 0; background: transparent; padding: 4px 6px; border-radius: 6px;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  cursor: pointer;
+}
+.done-head__clear:hover { background: var(--sand-600); color: var(--text-primary); }
+
+/* ---- empty ---- */
+.empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 0 24px 40px;
+  text-align: center; color: var(--text-tertiary);
+}
+.empty svg { width: 22px; height: 22px; }
+.empty p { margin: 0; font-size: 13.5px; line-height: 1.45; }
+
+/* ---- buttons (same as hub.css) ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 34px; padding: 0 15px;
+  border: 1px solid transparent; border-radius: 9px;
+  font: inherit; font-size: 13px; font-weight: 600;
+  white-space: nowrap; cursor: pointer;
+}
+.btn--dark { background: #1c1c1a; color: #fff; }
+.btn--dark:hover:not(:disabled) { background: #34342f; }
+.btn--ghost { background: var(--sand-500); border-color: var(--border-subtle); color: var(--text-primary); }
+.btn--ghost:hover:not(:disabled) { background: var(--sand-600); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+/* ---- project groups ---- */
+.project { display: flex; flex-direction: column; gap: 8px; }
+.project__head {
+  display: flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 6px;
+  border: 0; background: transparent;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-primary);
+  text-align: left; cursor: pointer; border-radius: 7px;
+}
+.project__head:hover { background: rgba(0, 0, 0, 0.035); }
+.project__head svg { width: 14px; height: 14px; color: var(--text-tertiary); transition: transform var(--spring-duration) ease; }
+.project__count { color: var(--text-tertiary); }
+
+/* ---- project autocomplete ---- */
+.ac {
+  position: absolute; left: 14px; top: 44px; z-index: 5;
+  display: flex; flex-direction: column;
+  width: 240px; padding: 5px;
+  border: 1px solid var(--border-subtle); border-radius: var(--dialog-border-radius);
+  background: var(--bg-content);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+}
+.ac__row {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; height: 32px; padding: 0 9px;
+  border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-primary);
+  font: inherit; font-size: 13.5px; text-align: left; cursor: pointer;
+}
+.ac__row.is-hi { background: var(--sand-300); }
+.ac__row svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--text-secondary); }
+.ac__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac__name b { font-weight: 600; }
+.ac__count { font-size: 12px; color: var(--text-tertiary); }
+.ac__row--create { color: var(--text-secondary); }
+.ac__sep { height: 1px; margin: 3px 0; background: var(--border-subtle); }
+
+/* ---- date picker ---- */
+.picker {
+  position: fixed; z-index: 10;
+  display: flex; flex-direction: column; gap: 10px;
+  width: 300px; padding: 12px;
+  border: 1px solid var(--border-subtle); border-radius: var(--dialog-border-radius);
+  background: var(--bg-content);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  animation: pickin 0.14s ease;
+}
+@keyframes pickin { from { opacity: 0; transform: translateY(-4px); } }
+.picker__quick { display: flex; gap: 6px; }
+.picker__q {
+  padding: 4px 8px; border: 0; border-radius: 9999px;
+  background: var(--sand-100); color: var(--text-secondary);
+  font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.picker__q:hover { background: var(--sand-600); color: var(--text-primary); }
+.picker__q.is-on { background: #1c1c1a; color: #fff; }
+.picker__month {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 2px 0;
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+}
+.picker__nav {
+  width: 24px; height: 24px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: 16px; line-height: 1; cursor: pointer;
+}
+.picker__nav:hover { background: var(--sand-300); color: var(--text-primary); }
+.picker__dow, .picker__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.picker__dow span { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--text-tertiary); }
+.picker__grid { row-gap: 2px; }
+.picker__day {
+  height: 32px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-primary);
+  font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.picker__day:hover { background: var(--sand-300); }
+.picker__day.is-past { color: var(--text-tertiary); }
+.picker__day.is-today { box-shadow: inset 0 0 0 1px var(--vast-200); font-weight: 600; }
+.picker__day.is-sel, .picker__day.is-sel:hover { background: #1c1c1a; color: #fff; font-weight: 600; }
+
+.picker__sep { height: 1px; background: var(--border-subtle); }
+.picker__time { display: flex; align-items: center; gap: 6px; }
+.picker__time > svg { width: 13px; height: 13px; flex: 0 0 13px; color: var(--text-tertiary); }
+.picker__timefield {
+  flex: 1; min-width: 0; padding: 4px 8px;
+  border: 1px solid var(--vast-200); border-radius: 7px;
+  background: var(--bg-content); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 11.5px; text-align: center; outline: none;
+}
+.picker__timefield:focus { border-color: var(--focus); }
+.picker__timefield::placeholder { color: var(--text-tertiary); }
