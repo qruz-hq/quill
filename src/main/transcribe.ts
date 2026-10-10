@@ -41,7 +41,7 @@ export async function transcribeCloud(
     if (single.length === 1) form.append(eleven ? 'language_code' : 'language', single[0])
 
     // Drops filler words, false starts and non-speech sounds. ElevenLabs only,
-    // and only on scribe_v2 — v1 rejects the field outright.
+    // and only on scribe_v2, v1 rejects the field outright.
     if (eleven && noVerbatim && model.startsWith('scribe_v2')) form.append('no_verbatim', 'true')
 
     const r = await fetch(eleven ? ELEVEN_ENDPOINT : OPENAI_ENDPOINT, {
@@ -57,7 +57,7 @@ export async function transcribeCloud(
       try {
         const j = JSON.parse(body)
         const detail = j?.error?.message ?? j?.detail?.message ?? j?.detail
-        if (detail) msg += ` — ${String(detail).slice(0, 140)}`
+        if (detail) msg += `, ${String(detail).slice(0, 140)}`
       } catch { /* keep the status */ }
       return { text: '', error: msg, ms }
     }

@@ -1,0 +1,162 @@
+/* Shared frame for the hub's editing dialogs: "Dialog, New snippet" (VnBia),
+   "Dialog, New transform" (ddCUn), "Dialog, Edit transform" (OWYl9).
+   Owner: snippets/transforms surface. Accent comes from .dlg--<accent>. */
+
+.dlg--pink      { --acc: var(--pink);      --acc-on: var(--pink-on);      --acc-soft: var(--pink-soft); }
+.dlg--lime      { --acc: var(--lime);      --acc-on: var(--lime-on);      --acc-soft: var(--lime-soft); }
+.dlg--violet    { --acc: var(--violet);    --acc-on: var(--violet-on);    --acc-soft: var(--violet-soft); }
+.dlg--cyan      { --acc: var(--cyan);      --acc-on: var(--cyan-on);      --acc-soft: var(--cyan-soft); }
+.dlg--tangerine { --acc: var(--tangerine); --acc-on: var(--tangerine-on); --acc-soft: var(--tangerine-soft); }
+
+/* Overlay: centres the dialog. The scrim is a sibling of the dialog, so each
+   animates on its own layer (docs/MOTION.md §4.8). */
+.dlg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 310;                        /* Z.dialog */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  -webkit-app-region: no-drag;
+}
+/* Backdrop: the design has none (dialogs sit on the canvas); house scrim. */
+.dlg-scrim { position: absolute; inset: 0; background: var(--scrim-overlay); }
+
+/* Dialog frame: vertical, gap $bento-gap, padding 12, $bg, 1px $line,
+   radius-xl, shadow 0 24 64 #00000047. Width 560 (snippet) / 640 (transform). */
+.dlg {
+  position: relative;
+  padding: 12px;
+  width: 560px;
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+  border-radius: var(--radius-xl);
+  box-shadow: inset 0 0 0 1px var(--line), 0 24px 64px #00000047;
+  color: var(--fg);
+}
+.dlg--wide { width: 640px; }
+/* The frame's column, one level in so a card morph can cross-fade it. */
+.dlg__content { display: flex; flex-direction: column; gap: var(--bento-gap); }
+
+/* Tile / Hero: vertical, gap 18 (transform: 14), padding 16 16 20 20, accent fill, radius-lg */
+.dlg__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 16px 20px 20px;
+  flex: none;
+  background: var(--acc);
+  color: var(--acc-on);
+  border-radius: var(--radius-lg);
+}
+.dlg--wide .dlg__hero { gap: 14px; }
+/* Top: row, space-between, center */
+.dlg__top { display: flex; justify-content: space-between; align-items: center; }
+/* Mono label (fields and tiles): $font-mono-new 11/500, letter-spacing 1.4 */
+.dlg__label {
+  margin: 0;
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--fg-2);
+}
+.dlg__hero .dlg__label { color: var(--acc-on); }
+/* Close: 28×28, $scrim-dark, pill, icon close/16 in accent ink */
+.dlg__close {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--scrim-dark);
+  color: var(--acc-on);
+  cursor: pointer;
+}
+.dlg__close { transition: background-color var(--dur-hover-out) var(--ease-out); }
+.dlg__close:hover { background: var(--scrim-dark-2); transition-duration: var(--dur-hover-in); }
+.dlg__close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Headline: $font-display $type-title-1 (32) / 800, line-height 1, -0.8 */
+.dlg__headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-title-1);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.8px;
+  color: var(--acc-on);
+}
+
+/* Tiles inside the dialog: vertical, padding 20, $surface, radius-lg */
+.dlg__tile {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  min-width: 0;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+}
+/* Field: vertical, gap 8 */
+.dlg__field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* Input: row, center, padding 11 12, $surface-2, 1px $line, radius-sm.
+   Focused: 1.5px accent stroke and an accent caret. */
+.dlg__input {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 11px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.dlg__input:focus-within { box-shadow: inset 0 0 0 1.5px var(--acc); }
+.dlg__input input,
+.dlg__input textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  caret-color: var(--acc);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+}
+.dlg__input ::placeholder { color: var(--fg-3); }
+/* Hint: body 12 $fg-3 */
+.dlg__hint { margin: 0; font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3); }
+
+/* Footer: row, space-between, center, padding 4 4 4 8 */
+.dlg__footer {
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 4px 8px;
+}
+/* Hint: gap 6, center; esc keycap (Keycap size="sm"); text 12 $fg-3 */
+.dlg__esc { display: flex; align-items: center; gap: 6px; }
+.dlg__esc-text { font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3); }
+/* Actions: gap 8, center */
+.dlg__actions { display: flex; align-items: center; gap: 8px; }
+/* Save: Button / Primary filled with the accent, accent ink */
+.q-btn.dlg__save {
+  background-color: var(--acc);
+  color: var(--acc-on);
+  /* Save disabled <-> enabled: dur.fast, ease.standard */
+  transition: opacity var(--dur-fast) var(--ease-standard), background-color var(--dur-fast) var(--ease-standard);
+}
+
+/* Press wrapper (sniptfMotion Press): takes the press scale for a shared button. */
+.sm-press { display: inline-flex; flex: none; }

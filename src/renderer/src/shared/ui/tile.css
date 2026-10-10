@@ -1,0 +1,68 @@
+/* Tile: Atoms "Tile / Stat" (SjoAI), "Tile / Violet|Tangerine|Lime|Cyan|Pink"
+   (fNRD0 epvx1 mMb1I LvIU7 CHZFr) and "Tile / Hero" (Dlemh). Owner: shared/ui.
+   Size is never set here: screens give each tile its width/height (fill or px). */
+.q-tile {
+  --tile-bg: var(--surface);
+  --tile-on: var(--fg);
+  display: flex;
+  flex-direction: column;              /* layout: vertical */
+  justify-content: space-between;      /* space_between */
+  padding: 20px;
+  border-radius: var(--radius-lg);     /* 24 */
+  background: var(--tile-bg);
+  color: var(--tile-on);
+  min-width: 0;
+  min-height: 0;
+}
+.q-tile--violet    { --tile-bg: var(--violet);    --tile-on: var(--violet-on); }
+.q-tile--tangerine { --tile-bg: var(--tangerine); --tile-on: var(--tangerine-on); }
+.q-tile--lime      { --tile-bg: var(--lime);      --tile-on: var(--lime-on); }
+.q-tile--cyan      { --tile-bg: var(--cyan);      --tile-on: var(--cyan-on); }
+.q-tile--pink      { --tile-bg: var(--pink);      --tile-on: var(--pink-on); }
+
+/* Tile / Hero: radius-xl, padding 24 */
+.q-tile--hero { padding: 24px; border-radius: var(--radius-xl); }
+
+/* "Top": width fill, horizontal, space_between, alignItems center */
+.q-tile__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  /* House rule: a growing right-hand node wraps to the next line instead of
+     squeezing the label. The gap only shows once the two would touch. */
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.q-tile__label-group { display: flex; flex: none; align-items: center; gap: 10px; }
+/* "Label": $font-mono-new, $type-label 11, 500, letterSpacing 1.4 */
+.q-tile__label {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--tile-on);
+  flex: none;
+}
+.q-tile__icon { color: var(--tile-on); }
+
+/* "Bottom": vertical, gap 2 */
+.q-tile__stat { display: flex; flex-direction: column; gap: 2px; }
+/* "Value": $font-display, $type-stat 44, 800, letterSpacing -1.2 */
+.q-tile__value {
+  font-family: var(--font-display);
+  font-size: var(--type-stat);
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  line-height: normal;
+  color: var(--tile-on);
+}
+/* "Caption": $font-body, $type-body-sm 13, normal */
+.q-tile__caption {
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--tile-on);
+}

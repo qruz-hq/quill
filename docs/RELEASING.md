@@ -4,12 +4,12 @@
 
 macOS ties two things to an app's code signature:
 
-1. **Gatekeeper** — an unsigned or ad-hoc-signed app is refused on any machine
+1. **Gatekeeper**, an unsigned or ad-hoc-signed app is refused on any machine
    other than the one that built it. Recipients see *"can't be opened because
    Apple cannot check it for malicious software"*.
-2. **Permission grants** — Accessibility and Microphone approvals are keyed to
+2. **Permission grants**: Accessibility and Microphone approvals are keyed to
    the signature. Change it and every user re-grants.
-3. **Auto-update** — Squirrel.Mac verifies the signature of the downloaded build
+3. **Auto-update**: Squirrel.Mac verifies the signature of the downloaded build
    before applying it. Ad-hoc signed updates are rejected outright.
 
 An **Apple Developer ID** ($99/year) plus notarization fixes all three. Without
@@ -42,7 +42,7 @@ Set `mac.identity` in `electron-builder.yml` to your Developer ID and add
 ## Cutting a release
 
 ```bash
-npm version patch          # or minor / major — bumps package.json
+npm version patch          # or minor / major, bumps package.json
 git push --follow-tags
 ```
 

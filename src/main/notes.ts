@@ -12,7 +12,7 @@ export type Note = {
 
 /**
  * Scratchpad note storage. A single JSON file rather than a database: notes are
- * small, few, and read entirely on open — anything heavier would be ceremony.
+ * small, few, and read entirely on open, anything heavier would be ceremony.
  */
 export class NoteStore {
   private notes: Note[] = []
@@ -34,7 +34,7 @@ export class NoteStore {
     try { writeFileSync(this.file, JSON.stringify(this.notes, null, 2)) } catch { /* non-fatal */ }
   }
 
-  /** Newest first — the note list is always most-recently-touched. */
+  /** Newest first, the note list is always most-recently-touched. */
   list(): Note[] {
     this.load()
     return [...this.notes].sort((a, b) => b.updatedAt - a.updatedAt)

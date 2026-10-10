@@ -1,0 +1,26 @@
+/* Hub window shell: the frame (Hub - Dictation vBtIm: fill $bg, vertical)
+   holding Title Bar, the optional Banner Slot, then one screen's Bento.
+   Owner: hub/shell. */
+html, body, #root { height: 100%; }
+body { margin: 0; background: var(--bg); overflow: hidden; }
+
+.shell {
+  display: flex;
+  flex-direction: column;              /* layout: vertical */
+  height: 100vh;
+  background: var(--bg);
+  position: relative;                  /* an outgoing route layer is absolute during its exit */
+}
+
+/* "Banner Slot": fill width, padding 0 16 8 16 */
+.shell__banner { flex: none; padding: 0 16px 8px 16px; }
+
+/* Route layer: takes the screen's place in the column, so its one Bento
+   fills it exactly as it filled the shell. It only carries the route switch. */
+.shell__route {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  outline: none;                       /* focused from code only (tabindex -1) */
+}

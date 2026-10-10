@@ -1,0 +1,554 @@
+/* Hub, Dictation (vBtIm). Every value is read from its node in design.pen;
+   the node id is noted on each rule. Tile fills, ink, radius and the shared
+   Top/Stat parts come from shared/ui (q-tile*). Owner: dictation screen. */
+
+/* ---- Rows: Row 1 h7YsEo (h 224), Row 2 cINbQ (h 200), Row 3 BsYyf (fill);
+   all horizontal, gap $bento-gap, width fill ---- */
+.dict__row {
+  display: flex;
+  flex-direction: row;
+  gap: var(--bento-gap);
+  width: 100%;
+  min-height: 0;
+  flex: none;
+}
+.dict__row--1 { height: 224px; }
+.dict__row--2 { height: 200px; }
+.dict__row--3 { flex: 1 1 0; }
+.dict__row > * { height: auto; align-self: stretch; }  /* tiles: height fill_container */
+/* Pencil never shrinks a tile's children: when the content is taller than
+   the tile (the banner variants) it overflows instead. */
+.dict .q-tile > * { flex-shrink: 0; }
+.dict .q-tile.dict-recent > .dict-recent__list { flex-shrink: 1; }
+
+/* With a Banner Slot above the Bento (f9cd0 / iUNKf) the rows are 214 / 186.
+   `has-banner` follows the banner from t = 0 of its way in or out. */
+.dict.has-banner .dict__row--1 { height: 214px; }
+.dict.has-banner .dict__row--2 { height: 186px; }
+/* At 214 the WPM tile is 9 short (20 + 26 + 157 + 20 = 223): space_between in
+   Pencil keeps Top at the start and Bottom at the end, overlapping by 9. */
+.dict.has-banner .dict-wpm__bottom { margin-top: -9px; }
+/* Once the launch state is painted, the rows reflow on the banner's own height
+   spring instead of jumping (docs/MOTION.md §4.5; set in DictationScreen). */
+.dict.is-live .dict__row { transition: height var(--dict-reflow-dur) var(--dict-reflow-ease); }
+.dict.is-live .dict-wpm__bottom { transition: margin-top var(--dict-reflow-dur) var(--dict-reflow-ease); }
+
+/* History view: the recent list takes the whole bento. */
+.dict.is-history .dict__row--1,
+.dict.is-history .dict__row--2 { display: none; }
+
+/* Mono section label ("Label" text nodes: $font-mono-new 11/500, ls 1.4) */
+.dict-label {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+.dict-label--fg3 { color: var(--fg-3); }      /* b0xKcQ "LONGEST 21 DAYS" */
+
+.dict-empty {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  color: var(--fg-3);
+}
+
+/* =========================================================================
+   Hero / Hold fn (MxUUF → Tile / Hero Dlemh). Instance overrides padding 20;
+   radius-xl and fill $violet from the component; vertical, space_between.
+   ========================================================================= */
+.dict-hero { flex: 1 1 0; padding: 20px; }
+
+/* "Ready" (JWa16): row, center, gap 6, padding 5 10, $scrim-dark-2, pill */
+.dict-hero__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--scrim-dark-2);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+/* "Dot" (qT6Iv): 7×7, $lime. Its colour tweens between states. */
+.dict-hero__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--lime);
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+/* Holds "Text": hugs it at rest; clips the outgoing label while the width
+   follows a swap. Flex, so the label (an inline-block while BlurWords animates
+   its width) is a box here and adds no line box to the chip's height. */
+.dict-hero__chipbox { display: flex; flex: none; overflow: hidden; }
+/* "Text" (UlMkq): $font-body 12/600, $violet-on */
+.dict-hero__chiptext {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+  color: var(--violet-on);
+}
+/* Mic missing (f9cd0): chip $surface, dot $error. The node keeps the text
+   $violet-on, which is white on white in the light theme, so the text
+   follows $fg here (reported to design). */
+.dict-hero--mic .dict-hero__chip { background: var(--surface); }
+.dict-hero--mic .dict-hero__dot { background: var(--error); }
+.dict-hero--mic .dict-hero__chiptext { color: var(--fg); }
+/* Accessibility off (iUNKf): dot $warn */
+.dict-hero--ax .dict-hero__dot { background: var(--warn); }
+/* The speech model is on its way (house state, after iUNKf: a wait, dot $warn).
+   The percent is its own node so only the digits that change move. */
+.dict-hero.is-fetching .dict-hero__dot { background: var(--warn); }
+.dict-hero__chipnum { flex: none; margin-left: -2px; }
+/* The speech model is missing (house state, after f9cd0: chip $surface, dot
+   $error, text $fg). The chip is a button to Settings, Speech models. */
+.dict-hero.is-nomodel .dict-hero__chip { background: var(--surface); }
+.dict-hero.is-nomodel .dict-hero__dot { background: var(--error); }
+.dict-hero.is-nomodel .dict-hero__chiptext { color: var(--fg); }
+.dict-hero__chip--go { border: 0; font: inherit; cursor: pointer; }
+.dict-hero__chip--go:hover { background: var(--surface-2); }
+.dict-hero__chip--go:focus-visible { outline: 2px solid var(--violet-on); outline-offset: 2px; transition: none; }
+.dict-hero__chipgo { flex: none; margin: 0 -4px 0 -2px; color: var(--fg-2); }
+/* Live states (house: the design has no recording frame for the hub).
+   Listening: $error, pulsing (loop.pulse, set in HeroTile). */
+.dict-hero--busy .dict-hero__dot { background: var(--cyan); }
+.dict-hero.is-recording .dict-hero__dot { background: var(--error); }
+
+/* "Headline" (v8CZOy): row, center, gap 12 (iUNKf: 10).
+   "Hold" / "To talk": $font-display $type-display 56 / 800, ls -1.8, $violet-on.
+   It is a BlurWords headline: h1 > .bw > .bw-layer > one .bw-tok per word. The
+   layer is the row; with Reduce Motion the h1 itself is (plain spans).
+   --hl-k is 1 as drawn; HeroTile steps it down when the copy cannot fit. */
+.dict-hero__headline {
+  --hl-k: 1;
+  --headline-gap: calc(12px * var(--hl-k));
+  display: flex;
+  align-items: center;
+  gap: var(--headline-gap);
+  min-width: 0;
+  margin: 0;
+  align-self: flex-start;               /* hugs its content */
+  font-family: var(--font-display);
+  font-size: calc(var(--type-display) * var(--hl-k));
+  font-weight: 800;
+  letter-spacing: calc(-1.8px * var(--hl-k));
+  line-height: normal;
+  color: var(--violet-on);
+  white-space: nowrap;
+}
+.dict-hero--ax .dict-hero__headline { --headline-gap: calc(10px * var(--hl-k)); }
+.dict-hero__headline > .bw { display: contents; }
+.dict-hero__headline .bw-layer {
+  display: flex;
+  align-items: center;
+  gap: var(--headline-gap);
+}
+/* A word that follows another word of the same text node ("to" then "talk.")
+   keeps its own space instead of the row gap. */
+.dict-hero__headline .bw-tok {
+  display: block;
+  flex: none;
+  white-space: pre;
+  margin-left: calc(-1 * var(--headline-gap));
+}
+/* The first word, the Key and the word after the Key are row items: no space. */
+.dict-hero__headline .bw-tok:first-child,
+.dict-hero__headline .bw-tok:has(.dict-hero__key),
+.dict-hero__headline .bw-tok:has(.dict-hero__key) + .bw-tok {
+  white-space: nowrap;
+  margin-left: 0;
+}
+/* The Key is a box in the row, not an inline in a 56 px line. */
+.dict-hero__headline .bw-tok:has(.dict-hero__key),
+.dict-hero__headline .bw-word:has(> .dict-hero__key),
+.dict-hero__headline > span:has(> .dict-hero__key) { display: flex; }
+/* A headline too long for one line (set by HeroTile): the row wraps between
+   its items, so the Key stays whole, and the lines sit closer than two
+   separate 56 px line boxes would. */
+.dict-hero__headline[data-fit] { max-width: 100%; line-height: 1.05; }
+.dict-hero__headline[data-fit],
+.dict-hero__headline[data-fit] .bw-layer {
+  flex-wrap: wrap;
+  row-gap: calc(6px * var(--hl-k));
+}
+.dict-hero__headline[data-fit] .bw-layer { flex: 0 1 auto; min-width: 0; }
+/* "break": the line ends after the Key, so "to talk." starts the second line
+   together. The empty full-width item is a line of its own, hence half the gap. */
+.dict-hero__headline[data-fit="break"] .bw-layer { row-gap: calc(3px * var(--hl-k)); }
+.dict-hero__headline[data-fit="break"] .bw-layer::after { content: ""; flex: 0 0 100%; height: 0; order: 1; }
+.dict-hero__headline[data-fit="break"] .bw-tok:has(.dict-hero__key) ~ .bw-tok { order: 2; }
+/* "Key" (je2Xp): padding 4 16, $violet-on, radius-md, stroke $scrim-dark-2 bottom 4 (inside) */
+.dict-hero__key {
+  display: inline-flex;
+  flex: none;
+  padding: calc(4px * var(--hl-k)) calc(16px * var(--hl-k));
+  border-radius: var(--radius-md);
+  background: var(--violet-on);
+  box-shadow: inset 0 calc(-4px * var(--hl-k)) 0 var(--scrim-dark-2);
+}
+/* "Key Label" (mZw2O): $font-mono-new 36/600, $violet */
+.dict-hero__keylabel {
+  font-family: var(--font-mono-new);
+  font-size: calc(36px * var(--hl-k));
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: normal;
+  color: var(--violet);
+  white-space: nowrap;
+}
+
+/* "Bottom" (MjVVP): row, space_between, center, width fill */
+.dict-hero__bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+/* "Hint" (LILxK): $font-body 13 normal, $violet-on */
+.dict-hero__hint {
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--violet-on);
+  min-width: 0;
+}
+/* "Wave" (Boi0p): row, center, gap 3, height 24; bars 3 wide, r2, $lime */
+.dict-hero__wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+  flex: none;
+}
+.dict-hero__bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--lime);
+}
+
+/* =========================================================================
+   Tile / Words today (DKicC → Tile / Tangerine): width 260, Top height 26
+   ========================================================================= */
+.dict-words { flex: 0 0 260px; width: 260px; }
+.dict-words__top { height: 26px; }
+/* "Bottom" (j4DqX) hugs its content: no stretch inside the column tile. */
+.dict-words .q-tile__stat { align-self: flex-start; align-items: flex-start; }
+
+/* =========================================================================
+   Tile / WPM (O6MgzZ → Tile / Cyan): width 260, Top height 26
+   ========================================================================= */
+.dict-wpm { flex: 0 0 260px; width: 260px; }
+.dict-wpm__top { height: 26px; }
+/* "Bottom" (gVwvw): vertical, alignItems center, gap 8, width fill */
+.dict-wpm__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+/* "Gauge" (Chrvy): 132×132, vertical, center/center; Track + Value Arc absolute */
+.dict-gauge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 132px;
+  height: 132px;
+  flex: none;
+}
+.dict-gauge__arcs { position: absolute; inset: 0; width: 132px; height: 132px; }
+.dict-gauge__track { fill: none; stroke: var(--scrim-dark-2); }   /* w0Hpo */
+.dict-gauge__fill  { fill: none; stroke: var(--cyan-on); }        /* ckrPK */
+/* "Value" (bxkNY): $font-display $type-stat 44/800, lineHeight 1, ls -1.2 */
+.dict-gauge__value {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: var(--type-stat);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.2px;
+  color: var(--cyan-on);
+}
+/* "Unit" (aIwcn): $font-mono-new 11/500, ls 0.6, opacity 0.7 */
+.dict-gauge__unit {
+  position: relative;
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  line-height: normal;
+  color: var(--cyan-on);
+  opacity: 0.7;
+}
+/* "Caption" (yFh3B): $font-body 13, opacity 0.75 */
+.dict-wpm__caption {
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--cyan-on);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   Tile / Streak (k09rs → d2I4L): width 524, vertical, gap 14, padding 20
+   ========================================================================= */
+.dict-streak { flex: 0 0 524px; width: 524px; justify-content: flex-start; gap: 14px; }
+/* "Top" (f3dQl): row, space_between, center, width fill */
+.dict-streak__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+/* "Title" (tJyqw): row, center, gap 10; flame 20 $fg */
+.dict-streak__title { display: flex; align-items: center; gap: 10px; color: var(--fg); }
+/* "Value" (bZ4d4): $font-display $type-title-2 22/700, ls -0.4 */
+.dict-streak__value {
+  font-family: var(--font-display);
+  font-size: var(--type-title-2);
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: normal;
+  color: var(--fg);
+  white-space: nowrap;
+}
+/* "Grid" (XuNx4): row, space_between, gap 4, width fill */
+.dict-streak__grid {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+}
+/* "Week n": vertical, gap 4 */
+.dict-streak__week { display: flex; flex-direction: column; gap: 4px; }
+/* "Day": 12×12, r3, $streak-0..3 */
+.dict-streak__day { display: block; width: 12px; height: 12px; border-radius: 3px; background: var(--streak-0); }
+/* Today's cell fills when the first dictation of the day lands. */
+.dict-streak__day--today { transition: background-color var(--dur-base) var(--ease-standard); }
+.dict-streak__day--1 { background: var(--streak-1); }
+.dict-streak__day--2 { background: var(--streak-2); }
+.dict-streak__day--3 { background: var(--streak-3); }
+
+/* =========================================================================
+   Tile / Most used words (E6uv7B → p7VrB): fill, vertical, gap 14, padding 20
+   ========================================================================= */
+.dict-most { flex: 1 1 0; justify-content: flex-start; gap: 14px; }
+/* "Top" (F6Wwow): row, space_between, center, height 26 */
+.dict-most__top { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 26px; }
+/* "List" (mFIEK): vertical, gap 8, width fill */
+.dict-most__list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+/* row ("meeting" sj6aU): row, center, gap 10, width fill */
+.dict-most__row { display: flex; align-items: center; gap: 10px; width: 100%; }
+/* "Word": width 72, $font-body 13/500 $fg */
+.dict-most__word {
+  flex: 0 0 72px;
+  width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg);
+}
+/* "Track": fill × 14, $surface-3, pill */
+.dict-most__track {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+/* "Bar": h14, $pink, r7 */
+.dict-most__bar { display: block; height: 14px; border-radius: 7px; background: var(--pink); }
+/* "Count": width 28, $font-mono-new 11 normal, $fg-3 */
+.dict-most__count {
+  flex: 0 0 28px;
+  width: 28px;
+  font-family: var(--font-mono-new);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg-3);
+  text-align: right;                    /* h7DjK textAlign right */
+}
+
+/* =========================================================================
+   Tile / Recent dictations (l15GP): fill, vertical, gap 10, padding 20 14 14 14
+   ========================================================================= */
+.dict-recent { flex: 1 1 0; justify-content: flex-start; gap: 10px; padding: 20px 14px 14px 14px; }
+/* "Top" (XTSNj): row, space_between, center, padding 0 6, height 26 */
+.dict-recent__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 6px;
+  width: 100%;
+  height: 26px;
+  flex: none;
+}
+/* "History Link" (e49J5): row, center, gap 4; label 12/500 $fg-2; chevron-right 16 $fg-2 */
+.dict-recent__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+.dict-recent__link:hover { color: var(--fg); }
+.dict-recent__link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+/* "List" (mEXVZ): vertical, width fill */
+.dict-recent__list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.dict:not(.is-history) .dict-recent__list { flex: none; }   /* hugs its rows */
+.dict.is-history .dict-recent__list { overflow-y: auto; }
+.dict-recent__empty { padding: 7px 8px; }
+/* Each row sits in an item whose real height opens and closes when a
+   dictation arrives or is deleted; at rest it is exactly its row. */
+.dict-recent__item { flex: none; width: 100%; }
+
+/* Row (ORICE): row, center, gap 12, padding 0 4 0 8, h30, radius-xs; hover = $surface-2 */
+.dict-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 0 8px;
+  width: 100%;
+  height: 30px;
+  flex: none;
+  border-radius: var(--radius-xs);
+  cursor: default;
+  outline: none;
+}
+.dict-row:not(.dict-row--failed) { cursor: pointer; }
+/* Hover fill: `m-hover` (60 ms in, 160 ms out). */
+.dict-row:hover, .dict-row:focus-visible, .dict-row:focus-within { background: var(--surface-2); }
+/* "Time": width 36, $font-mono-new 11/500, $fg-3 */
+.dict-row__time {
+  flex: 0 0 36px;
+  width: 36px;
+  font-family: var(--font-mono-new);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg-3);
+}
+/* "Text": fill, $font-body 13 normal, $fg (failed: $fg-3 italic) */
+.dict-row__text {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg);
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.dict-row--failed .dict-row__text { color: var(--fg-3); font-style: italic; }
+.dict-row.is-busy .dict-row__text { color: var(--fg-3); }      /* AI cleanup running again */
+/* "App" (h7r6wb → Badge nUen5): padding 3 8, radius 9999: the Badge primitive */
+.dict-row__app { flex: none; }
+/* "Actions" (At0DK): row, justify end, center, gap 2, 88×28 */
+.dict-row__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 88px;
+  width: 88px;
+  height: 28px;
+}
+/* Copy / Retry / Flag (Icon Button ayoGp at 28×28, pill; icon 16 $fg) */
+.q-iconbtn.dict-row__btn { width: 28px; height: 28px; color: var(--fg); }
+.q-iconbtn.dict-row__btn--flagged { color: var(--violet); }     /* b1Ojc: flag active, $violet */
+.q-iconbtn.dict-row__btn--error { color: var(--error); }        /* oFZA3: retry, $error */
+/* Copy/Retry/Flag show on the hovered row (ORICE); rows at rest show only
+   a set flag (NkdcX) or the failed row's retry (VXhHA). They come in over
+   dur.micro with a 4 px nudge and leave over dur.flash; keyboard focus shows
+   them at once. */
+.dict-row__btn--hover {
+  transition: opacity var(--dur-flash) var(--ease-out), visibility 0s linear var(--dur-flash);
+}
+.dict-row:not(:hover):not(:focus-within) .dict-row__btn--hover { opacity: 0; visibility: hidden; }
+.dict-row:hover .dict-row__btn--hover {
+  transition: none;
+  animation: dict-actions-in var(--dur-micro) var(--ease-out) backwards;
+}
+.dict-row:focus-within .dict-row__btn--hover { transition: none; animation: none; }
+@keyframes dict-actions-in {
+  from { opacity: 0; transform: translateX(var(--dist-sm)); }
+}
+
+/* =========================================================================
+   Tile / Scratchpad (tCsVi → cXqXD): width 260, padding 20, space_between,
+   $surface, stroke $line 1 inner, radius-lg
+   ========================================================================= */
+.dict-pad {
+  flex: 0 0 260px;
+  width: 260px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+  outline: none;
+}
+/* Hover fill: `m-hover`. Press: scale.pressCard (ScratchpadTile). */
+.dict-pad:hover { background: var(--surface-2); }
+.dict-pad:focus-visible { box-shadow: inset 0 0 0 1px var(--line), 0 0 0 2px var(--focus); }
+/* "Top" (rh4J9): row, space_between, center, width fill */
+.dict-pad__top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+/* "Icon Chip" (hYyof): 40×40, center, $tangerine, pill; notepad 20 $tangerine-on */
+.dict-pad__chip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--tangerine);
+  color: var(--tangerine-on);
+}
+.dict-pad__ext { color: var(--fg); }                  /* F3T7nv external 20 $fg */
+/* "Bottom" (ebk17): vertical, gap 6 */
+.dict-pad__bottom { display: flex; flex-direction: column; align-items: flex-start; align-self: flex-start; gap: 6px; }  /* hugs */
+/* "Title" (q1zg8): $font-display $type-title-2 22/700, ls -0.4, $fg */
+.dict-pad__title {
+  font-family: var(--font-display);
+  font-size: var(--type-title-2);
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: normal;
+  color: var(--fg);
+  white-space: nowrap;
+}
+/* "Shortcut" (El1ra): row, gap 4: Keycap primitives */
+.dict-pad__shortcut { display: flex; gap: 4px; }

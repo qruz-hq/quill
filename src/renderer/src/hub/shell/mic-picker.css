@@ -1,0 +1,203 @@
+/* Mic picker: trigger "Mic Picker" (eunDH; open state CY5nd; mic-missing
+   state Umvra) and "Popover / Microphone" (z9wuN7) from Hub - Mic picker open.
+   Owner: hub/shell. */
+
+/* Trigger: h32, $surface, pill, stroke 1 $line, gap 8, padding 0 10 0 12 */
+.mic-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  max-width: 260px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+  /* Open <-> closed is a state change: dur.fast. */
+  transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+/* Open: $surface-2, stroke 1.5 $violet */
+.mic-trigger.is-open { background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--violet); }
+.mic-trigger:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* "Level": 7×7 ellipse $success ($error when the mic is refused) */
+.mic-trigger__level { position: relative; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+.mic-trigger__level.is-error { background: var(--error); }
+/* One attention ring (ring.dot) in the dot's own colour. */
+.mic-trigger__ring { position: absolute; inset: 0; border-radius: 50%; background: inherit; pointer-events: none; }
+/* "Device": 13 / 500 $fg-2 */
+.mic-trigger__device {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg-2);
+}
+/* The label swaps as one unit; a long device name still ends in an ellipsis. */
+.mic-trigger__device .bw-unit { overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.mic-trigger__chev { flex: none; color: var(--fg-3); }
+
+.mic-scrim { position: fixed; inset: 0; z-index: 40; -webkit-app-region: no-drag; }
+
+/* Popover: absolute at x 744, y 50 of the 1100-wide frame → right 16, top 50.
+   width 340, $surface-2, radius-lg, stroke 1 $line-strong,
+   shadow 0 16 40 #00000080, vertical, gap 2, padding 8 */
+.mic-pop {
+  position: fixed;
+  top: 50px;
+  right: 16px;
+  z-index: 41;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong), 0 16px 40px #00000080;
+  -webkit-app-region: no-drag;
+}
+/* "Head": padding 8 10, space_between, center */
+.mic-pop__head { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; }
+.mic-pop__label {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--fg-3);
+}
+/* "Level": height 12, gap 2, alignItems end; bars 3 wide, radius 1.5 */
+.mic-pop__meter { display: flex; align-items: flex-end; gap: 2px; height: 12px; }
+.mic-pop__bar { width: 3px; border-radius: 1.5px; background: var(--surface-3); }
+.mic-pop__bar.is-lit { background: var(--success); }
+
+/* Rows sit in real-height slots so a hot-plugged device can grow in and
+   collapse out. Each slot carries the popover's gap 2 under its row (a slot
+   at height 0 then adds nothing), and the list gives the last one back. */
+.mic-pop__rows { display: flex; flex-direction: column; margin-bottom: -2px; }
+.mic-slot { padding-bottom: 2px; }
+/* "<Device> disconnected, using <Fallback>": no design node, set like a row's detail line. */
+.mic-pop__notice {
+  margin: 0;
+  padding: 0 10px 8px 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--fg-2);
+}
+
+/* "Device Row": fill width, radius-md, gap 12, padding 10 12, center */
+.mic-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+  /* Selected <-> not is a state change: dur.fast. */
+  transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+/* house hover, on its own layer so the highlight stays instant both ways */
+.mic-row::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--scrim-dark); opacity: 0; }
+.mic-row:not(.is-selected):hover::before { opacity: 1; }
+.mic-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* "Icon Chip": 34 round, $surface-3, icon 16 $fg-2 */
+.mic-row__chip {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--fg-2);
+  transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+/* "Text": fill, vertical, gap 2 */
+.mic-row__text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mic-row__name {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--fg);
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.mic-row__detail {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--fg-3);
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+/* "Radio": 20, round, stroke 2 $fg-3; "Dot" 10, filled only in the checked row */
+.mic-row__radio {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 2px var(--fg-3);
+  transition: box-shadow var(--dur-fast) var(--ease-standard);
+}
+/* The dot's slot is in every row; the fill is one shared element that flies to the checked row. */
+.mic-row__dot { position: relative; width: 10px; height: 10px; }
+.mic-row__dotFill { background: var(--violet-fg); }
+
+/* Selected: $violet-soft, stroke 1.5 $violet inner; chip $violet / $violet-on;
+   detail $fg-2; radio stroke $violet-fg */
+.mic-row.is-selected { background: var(--violet-soft); box-shadow: inset 0 0 0 1.5px var(--violet); }
+.mic-row.is-selected .mic-row__chip { background: var(--violet); color: var(--violet-on); }
+.mic-row.is-selected .mic-row__detail { color: var(--fg-2); }
+.mic-row.is-checked .mic-row__radio { box-shadow: inset 0 0 0 2px var(--violet-fg); }
+
+/* Not connected (AirPods instance): icon $fg-3, name $fg-2, radio $line-strong */
+.mic-row.is-disconnected .mic-row__chip { color: var(--fg-3); }
+.mic-row.is-disconnected .mic-row__name { color: var(--fg-2); }
+.mic-row.is-disconnected:not(.is-checked) .mic-row__radio { box-shadow: inset 0 0 0 2px var(--line-strong); }
+
+/* "Divider": fill × 1, $line */
+.mic-pop__divider { flex: none; height: 1px; background: var(--line); }
+/* "Footer / Settings": radius-md, gap 10, padding 10 12, center */
+.mic-pop__footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.mic-pop__footer:hover { background: var(--scrim-dark); }
+.mic-pop__footer:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mic-pop__footIcon { color: var(--fg-2); }
+.mic-pop__footLabel {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg-2);
+}
+.mic-pop__footChev { color: var(--fg-3); }

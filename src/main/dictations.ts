@@ -8,6 +8,12 @@ export type Dictation = {
   at: number        // epoch ms
   words: number
   durationMs: number
+  /** The app that was frontmost when the dictation started, when known. */
+  app?: string
+  /** Pinned by the user from the hub's recent list. */
+  flagged?: boolean
+  /** Set when the recording produced no text; `text` is then empty. */
+  failed?: string
 }
 
 export type Insights = {
@@ -49,13 +55,15 @@ export class DictationStore {
     return rows
   }
 
-  add(text: string, durationMs: number): Dictation {
+  add(text: string, durationMs: number, extra: Pick<Dictation, 'app' | 'failed'> = {}): Dictation {
     const d: Dictation = {
       id: `d${Date.now()}${Math.floor(Math.random() * 1e3)}`,
       text,
       at: Date.now(),
       words: countWords(text),
-      durationMs
+      durationMs,
+      ...(extra.app ? { app: extra.app } : {}),
+      ...(extra.failed ? { failed: extra.failed } : {})
     }
     try { appendFileSync(this.file, JSON.stringify(d) + '\n') } catch { /* non-fatal */ }
     this.all().push(d)
@@ -67,15 +75,36 @@ export class DictationStore {
     return [...this.all()].sort((a, b) => b.at - a.at).slice(0, limit)
   }
 
+  get(id: string): Dictation | undefined {
+    return this.all().find((d) => d.id === id)
+  }
+
   remove(id: string): void {
-    const kept = this.all().filter((d) => d.id !== id)
-    this.cache = kept
-    try { writeFileSync(this.file, kept.map((d) => JSON.stringify(d)).join('\n') + (kept.length ? '\n' : '')) }
+    this.cache = this.all().filter((d) => d.id !== id)
+    this.save()
+  }
+
+  /** Edits one record in place (flag, or new text after a retry). */
+  update(id: string, patch: Partial<Pick<Dictation, 'text' | 'flagged'>>): void {
+    const d = this.all().find((r) => r.id === id)
+    if (!d) return
+    if (patch.flagged !== undefined) {
+      if (patch.flagged) d.flagged = true
+      else delete d.flagged
+    }
+    if (patch.text !== undefined) { d.text = patch.text; d.words = countWords(patch.text) }
+    this.save()
+  }
+
+  private save(): void {
+    const rows = this.all()
+    try { writeFileSync(this.file, rows.map((d) => JSON.stringify(d)).join('\n') + (rows.length ? '\n' : '')) }
     catch { /* non-fatal */ }
   }
 
   insights(): Insights {
-    const rows = this.all()
+    // Failed recordings stay in the history list but are not dictation.
+    const rows = this.all().filter((d) => !d.failed)
     const totalWords = rows.reduce((n, d) => n + d.words, 0)
     const totalMs = rows.reduce((n, d) => n + d.durationMs, 0)
 

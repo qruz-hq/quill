@@ -1,0 +1,508 @@
+/* Onboarding / Permissions: "Onboarding, 1 · Microphone" (qKuS4), "· denied"
+   (Yrwr7), "2 · Accessibility" (MGecJ), "Done" (eMSI1). Covers the whole window,
+   with its own title bar (Brand left, "SETUP" right, no nav). Every class is `ob-`.
+   Owner: settings/onboarding surface. */
+
+.ob-accent--violet    { --acc: var(--violet);    --acc-on: var(--violet-on); }
+.ob-accent--tangerine { --acc: var(--tangerine); --acc-on: var(--tangerine-on); }
+.ob-accent--lime      { --acc: var(--lime);      --acc-on: var(--lime-on); }
+.ob-accent--cyan      { --acc: var(--cyan);      --acc-on: var(--cyan-on); }
+
+/* frame: vertical, $bg */
+.ob {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.ob-mono {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+.ob-mono--ink { color: inherit; }
+
+/* "Title Bar": space_between, center, padding 0 16 0 20, h56 */
+.ob-tb {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px 0 20px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+/* "Left": width 260, center, gap 22 */
+.ob-tb__left { flex: none; display: flex; align-items: center; gap: 22px; width: 260px; }
+/* "Traffic Lights": gap 8, three 12 dots; macOS paints the real ones on top */
+.ob-tb__lights { flex: none; display: flex; gap: 8px; }
+.ob-tb__lights span { width: 12px; height: 12px; border-radius: 50%; visibility: hidden; }
+/* "Brand": center, gap 8 */
+.ob-tb__brand { display: flex; align-items: center; gap: 8px; color: var(--fg); }
+/* "Wordmark": display 19 / 700, letterSpacing -0.3 */
+.ob-tb__wordmark {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: normal;
+  color: var(--fg);
+}
+/* "Right": width 260, justifyContent end, center */
+.ob-tb__right { flex: none; display: flex; justify-content: flex-end; align-items: center; width: 260px; }
+
+/* "Bento": horizontal, gap $bento-gap, padding 4 16 16 16 */
+.ob-bento {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: var(--bento-gap);
+  padding: 4px 16px 16px 16px;
+  overflow: auto;
+}
+
+/* "Tile / Setup hero": width 440, vertical, space_between, padding 28, radius-xl */
+.ob-hero {
+  flex: 0 0 440px;
+  width: 440px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+  border-radius: var(--radius-xl);
+  background: var(--acc);
+  color: var(--acc-on);
+  transition: background-color var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
+}
+/* "Top": vertical, gap 18 */
+.ob-hero__top { display: flex; flex-direction: column; gap: 18px; }
+/* Entrance blur wrappers around the label and the body (the headline stays out). */
+.ob-hero__blur { display: flex; flex-direction: column; }
+/* "Headline": display 52 / 800, lineHeight 0.98, letterSpacing -1.6 */
+.ob-hero__headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 52px;
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -1.6px;
+  color: inherit;
+}
+/* "Body": 15 normal, lineHeight 1.45 */
+.ob-hero__body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: inherit;
+}
+/* "Tracker": vertical, gap 10 */
+.ob-tracker { display: flex; flex-direction: column; gap: 10px; }
+/* "Step 1": center, gap 12 */
+.ob-track { display: flex; align-items: center; gap: 12px; }
+/* "Number": 28, round; now/done: filled $acc-on with $acc ink; next: stroke 1.5 $acc-on */
+.ob-track__n {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+  transition: background-color var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard);
+}
+.ob-track__glyph { display: flex; justify-content: center; align-items: center; }
+.ob-track__n.is-now, .ob-track__n.is-done { background: var(--acc-on); color: var(--acc); }
+.ob-track__n.is-next { box-shadow: inset 0 0 0 1.5px var(--acc-on); color: var(--acc-on); }
+/* "Label": 15 / 600 fill; "State": 13 / 500 */
+.ob-track__label {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-body); font-size: 15px; font-weight: 600; line-height: normal;
+}
+.ob-track__state {
+  flex: none;
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; line-height: normal;
+}
+
+/* "Steps": vertical, gap $bento-gap, fill */
+.ob-steps {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bento-gap);
+}
+
+/* One box per permission. It is the "Permission Step" (E29iO) surface when
+   open and the "Permission Row" (FalvR) surface when closed; the height
+   between the two is measured and animated in Permissions.tsx, never fixed. */
+.ob-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: clip;
+}
+.ob-box.is-closed { flex: none; }
+/* Fills the column, and never shrinks under its own content. */
+.ob-box.is-open { flex: 1 0 auto; }
+
+/* "Permission Step" at the instance values: fill, padding 28, space_between, gap 18 */
+.ob-step {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 28px;
+}
+/* "Head": space_between (alignItems start). A long chip drops under the tile. */
+.ob-step__head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; }
+/* "Icon Tile": 64, radius-md, accent fill, 32 icon in accent ink */
+.ob-step__tile {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--acc);
+  color: var(--acc-on);
+  position: relative;
+}
+/* One attention ring on a grant: an outline layer that scales and fades. */
+.ob-step__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--acc);
+  pointer-events: none;
+}
+/* "Text": vertical, gap 6 */
+.ob-step__text { display: flex; flex-direction: column; gap: 6px; }
+/* "Step": mono 11 normal, letterSpacing 1.4, $fg-3 */
+.ob-step__n {
+  font-family: var(--font-mono-new);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--fg-3);
+}
+/* "Title": display $type-title-1 32 / 800, letterSpacing -0.8 */
+.ob-step__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-title-1);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  line-height: normal;
+  color: var(--fg);
+}
+/* "Body": $type-body 15, lineHeight 1.45, $fg-2 */
+.ob-step__body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--type-body);
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--fg-2);
+}
+/* "Note": 12 normal, lineHeight 1.4, $fg-3 */
+.ob-step__note {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--fg-3);
+}
+/* "Actions": center, gap 8 */
+.ob-step__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 36px; }
+/* Tone and disabled changes tween; press is the 0.97 house press. */
+.ob .q-btn {
+  transition: background-color var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard),
+    opacity var(--dur-fast) var(--ease-standard), scale var(--dur-fast) var(--ease-out);
+}
+.ob .q-btn:not(:disabled):active { scale: 0.97; }
+.ob .q-btn:focus-visible { transition: none; }
+.ob-step .q-btn:disabled { opacity: 0.5; }
+/* Accessibility "Primary": Button / Accent with $tangerine fill, $tangerine-on label */
+.q-btn.ob-btn--tangerine { background: var(--tangerine); color: var(--tangerine-on); }
+/* Speech model "Primary" (Failed, nyznM): $cyan fill, $cyan-on label */
+.q-btn.ob-btn--cyan { background: var(--cyan); color: var(--cyan-on); }
+/* Downloading (l2bMxJ): "Actions" holds the link alone and hugs it (17 high). */
+.ob-step__actions:has(> .ob-link:only-child) { min-height: 0; }
+/* "Cloud link" (mJm9l): text only, body 13 / 500, $fg-2 */
+.ob-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: color var(--dur-hover-out) var(--ease-out);
+}
+.ob-link:hover { color: var(--fg); transition-duration: var(--dur-hover-in); }   /* house hover */
+.ob-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; transition: none; }
+
+/* "Download" (fE38c in the card, J4sxN in the Try it tile): vertical, gap 8 */
+.ob-dl { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
+.ob-dl--card { padding: 12px 0 0 0; }                  /* fE38c: padding 12 0 0 0 */
+.ob-dl--tile { width: 380px; max-width: 100%; }        /* J4sxN: width 380 */
+/* "Meta": row, space_between, center, gap 8 */
+.ob-dl__meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+/* "Amount": body 12 / 500 $fg-2; "Percent": body 12 / 600 $fg */
+.ob-dl__amount, .ob-dl__pct {
+  font-family: var(--font-body); font-size: 12px; line-height: normal; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ob-dl__amount { font-weight: 500; color: var(--fg-2); }
+.ob-dl__pct { font-weight: 600; color: var(--fg); }
+/* "Progress" (T7Nek): fill x 6, $surface-3, radius 999; "Fill": $cyan, radius 999.
+   The fill follows each progress report over dur.base; Reduce Motion steps. */
+.ob-dl__bar { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.ob-dl__fill, .ob-row__fill { display: block; height: 100%; background: var(--cyan); transition: width var(--dur-base) var(--ease-linear); }
+.ob-dl__fill { border-radius: 999px; }
+
+/* Footer "Continue" while waiting: Button / Primary at opacity 0.35 */
+.q-btn.ob-btn--waiting:disabled { opacity: 0.35; }
+
+/* "Permission Row" (FalvR): center, gap 14, padding 14 16 14 14. It wraps: the
+   title keeps its natural width and a long chip moves to its own line. */
+.ob-row {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px 14px 14px;
+  border-radius: var(--radius-lg);
+}
+.ob-row.is-link { cursor: pointer; }
+.ob-row.is-link:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* "Icon Tile": 40, radius-sm, $surface-3, icon 20 $fg-2 */
+.ob-row__tile {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--fg-2);
+}
+/* "Text": vertical, gap 3 */
+.ob-row__text { flex: 1 0 auto; display: flex; flex-direction: column; gap: 3px; }
+.ob-row__title {
+  font-family: var(--font-body); font-size: 15px; font-weight: 600; line-height: normal; color: var(--fg);
+  white-space: nowrap;
+}
+
+/* "Status" as a Pill (brsjx "33%", "Next"): the figures do not jitter as they count. */
+.ob-row__pill { flex: none; font-variant-numeric: tabular-nums; }
+/* "Progress" (tufbC): fill x 3, $surface-3, along the bottom of the collapsed
+   row (the box clips it to its radius); "Fill" (GwooS): $cyan */
+.ob-row__bar { flex: none; height: 3px; background: var(--surface-3); }
+
+/* Status chip (Status Chip / Granted, Missing, Checking) with a live label. */
+.ob-chip { transition: background-color var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard); }
+.ob-chip__in { display: inline-flex; align-items: center; gap: 6px; }
+.ob-chip__slot { position: relative; flex: none; display: flex; width: 16px; height: 16px; }
+.ob-chip__glyph { display: flex; justify-content: center; align-items: center; width: 16px; height: 16px; }
+/* Waiting: a 6 dot in the icon's 16 box */
+.ob-chip__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* "Tile / Try it": vertical, center/center, gap 18, padding 28, $surface, radius-lg, fill */
+.ob-try {
+  position: relative;                  /* an outgoing state is absolute while it fades */
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+/* One state of the tile (Prompt, Listening/Speaking, Result, Nothing heard,
+   Mic problem). It repeats the tile's column (vertical, gap 18, centred) so
+   two states can cross-fade; the tile then has this one child. */
+.ob-try__stage {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+}
+/* "Label Row" (dC8M9): row, center, gap 8; with the check (ReBog): gap 6 */
+.ob-try__label { display: flex; align-items: center; gap: 8px; }
+.ob-try__label--check { gap: 6px; }
+/* "Rec Dot" (B9xDE7): 8×8 ellipse, $error */
+.ob-try__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--error); }
+.ob-try__check { color: var(--success); }               /* gPHEV: check 16, $success */
+.ob-try__warn { color: var(--warn); }                   /* U1fPC: warning 20, $warn */
+/* "Spectrum" (mbaX0): row, alignItems end, gap 3, h24; 28 bars 4 wide, r2,
+   $surface-3 at rest (3 high), $lime while moving (SpectrumBars writes 3 to 24) */
+.ob-try__spectrum { flex: none; display: flex; align-items: flex-end; gap: 3px; height: 24px; }
+.ob-try__bar { flex: none; width: 4px; height: 3px; border-radius: 2px; background: var(--surface-3); }
+.ob-try__bar.is-lit { background: var(--lime); }
+/* "Words" (rBxrj), as a ticker: the track is the tile's content width and one
+   line high, always. The line inside (Trail) never wraps: it is centred while
+   it is shorter than the track, then slides left, and what passes the left
+   edge fades under the mask (transparent at the edge, opaque from 96 px in). */
+.ob-try__words {
+  position: relative;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  height: 38px;                        /* "Line 1" (R1fyNY) is 38 high */
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 96px);
+  mask-image: linear-gradient(to right, transparent 0, #000 96px);
+}
+/* The line: row, gap 9 between words, as wide as its words. Trail sets its
+   left (what has been removed) and its transform (where it sits). */
+.ob-trail__line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 9px;
+  width: max-content;
+  height: 38px;
+  white-space: nowrap;
+  will-change: transform;
+}
+/* "Word": display $type-title-1 32 / 800, letterSpacing -0.8, $fg. New: $lime
+   (held by Trail), then to $fg over dur.base. Opacity is its age (Trail
+   animates each step). */
+.ob-trail__word {
+  flex: none;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: var(--type-title-1);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  line-height: 38px;                   /* "Line 1" (R1fyNY) is 38 high */
+  color: var(--fg);
+  transition: color var(--dur-base) var(--ease-standard);
+}
+.ob-trail__word.is-new { color: var(--lime); }
+/* "Sentence" (LQA27): width fill, display 26 / 800, lineHeight 1.15,
+   letterSpacing -0.6, centred. --lines is what the tile has room for. */
+.ob-try__sentence {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--lines, 3);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  width: 100%;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.6px;
+  text-align: center;
+  color: var(--fg);
+}
+/* "Title" (wd96y / wO0Bi): width fill, display $type-title-1 32 / 800,
+   lineHeight 1.15, letterSpacing -0.8, centred */
+.ob-try__title {
+  width: 100%;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-title-1);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.8px;
+  text-align: center;
+  color: var(--fg);
+}
+/* "Hold": center, gap 14 */
+.ob-try__hold { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
+/* "Pre" / "Post": display $type-title-1 32 / 800, letterSpacing -0.8 */
+.ob-try__word {
+  font-family: var(--font-display);
+  font-size: var(--type-title-1);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  line-height: normal;
+  color: var(--fg);
+}
+/* "Key fn": Keycap at h52, padding 0 18, $lime fill, $lime-on stroke + label 24 / 600 */
+.q-keycap.ob-try__key {
+  height: 52px;
+  padding: 0 18px;
+  background: var(--lime);
+  box-shadow: inset 0 -2px 0 var(--lime-on), inset 0 0 0 1px var(--lime-on);
+  color: var(--lime-on);
+  font-size: 24px;
+  font-weight: 600;
+}
+/* "Hint": width 380, 14 normal, lineHeight 1.45, $fg-2, centered */
+.ob-try__hint {
+  width: 380px;
+  max-width: 100%;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--fg-2);
+}
+
+/* "Footer": center, gap 12, padding 12 12 12 20, $surface, radius-lg.
+   It wraps, so a long button label never squeezes the note. */
+.ob-foot {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.ob-foot__note {
+  flex: 1 1 240px;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;   /* two-line note is 39 tall in "Footer" w4t0NZ */
+  color: var(--fg-2);
+}

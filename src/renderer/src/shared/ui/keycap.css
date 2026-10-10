@@ -1,0 +1,26 @@
+/* Keycap: Atoms "Keycap" (w8AZfy). Owner: shared/ui. */
+.q-keycap {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  align-items: center;
+  height: 24px;
+  padding: 4px 9px;
+  border-radius: var(--radius-xs);     /* 8 */
+  background: var(--surface);
+  /* stroke $line-strong: top 1, right 1, bottom 2, left 1 (inside) */
+  box-shadow: inset 0 -2px 0 var(--line-strong), inset 0 0 0 1px var(--line-strong);
+  color: var(--fg);
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+}
+/* Small instance: hugs its label (no fixed height), padding 2 7, label 11.
+   Fill and stroke stay themed; the Flow Bar adds its own bar-* colours. */
+.q-keycap--sm {
+  height: auto;
+  padding: 2px 7px;
+  font-size: 11px;
+}

@@ -25,7 +25,7 @@ export type ModelInfo = {
 
 /**
  * Sizes are exact, taken from the upstream repository, because the install
- * check compares against them — a rounded figure lets a truncated download
+ * check compares against them, a rounded figure lets a truncated download
  * pass as complete.
  *
  * Quantised builds matter more than they look: large-v3-turbo-q5_0 is a third
@@ -37,10 +37,10 @@ export const CATALOG: ModelInfo[] = [
   { id: 'base.en-q5_1',        label: 'Base (compressed)',   bytes:    59_721_011, wer: '~3%',  note: 'Base accuracy at a third of the memory.', quantised: true },
   { id: 'tiny.en',             label: 'Tiny',                bytes:    77_704_715, wer: '4.8%', note: 'Fastest. English only.' },
   { id: 'base.en',             label: 'Base',                bytes:   147_964_211, wer: '2.9%', note: 'Good accuracy per megabyte. English only.' },
-  { id: 'small-q5_1',          label: 'Small (compressed)',  bytes:   190_085_487, wer: '—',    note: 'Small accuracy for 190MB instead of 488MB.', multilingual: true, quantised: true },
-  { id: 'small',               label: 'Small',               bytes:   487_601_967, wer: '—',    note: 'Understands ~99 languages.', multilingual: true },
-  { id: 'large-v3-turbo-q5_0', label: 'Turbo (compressed)',  bytes:   574_041_195, wer: '—',    note: 'Best non-English accuracy per megabyte. Recommended for French.', multilingual: true, quantised: true },
-  { id: 'large-v3-turbo',      label: 'Turbo',               bytes: 1_624_555_275, wer: '—',    note: 'Most accurate, and the heaviest on memory.', multilingual: true }
+  { id: 'small-q5_1',          label: 'Small (compressed)',  bytes:   190_085_487, wer: '-',    note: 'Small accuracy for 190MB instead of 488MB.', multilingual: true, quantised: true },
+  { id: 'small',               label: 'Small',               bytes:   487_601_967, wer: '-',    note: 'Understands ~99 languages.', multilingual: true },
+  { id: 'large-v3-turbo-q5_0', label: 'Turbo (compressed)',  bytes:   574_041_195, wer: '-',    note: 'Best non-English accuracy per megabyte. Recommended for French.', multilingual: true, quantised: true },
+  { id: 'large-v3-turbo',      label: 'Turbo',               bytes: 1_624_555_275, wer: '-',    note: 'Most accurate, and the heaviest on memory.', multilingual: true }
 ]
 
 const BASE_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main'
@@ -56,6 +56,8 @@ export const RETIRED: Record<string, string> = { 'medium-q5_0': 'large-v3-turbo-
 
 export class ModelStore extends EventEmitter {
   private cancelled = new Set<ModelId>()
+  /** Downloads in flight. A second request for the same model joins the first. */
+  private inFlight = new Map<ModelId, Promise<void>>()
 
   get dir(): string {
     const d = join(app.getPath('userData'), 'models')
@@ -67,7 +69,7 @@ export class ModelStore extends EventEmitter {
     return join(this.dir, `ggml-${id}.bin`)
   }
 
-  /** A model counts as installed only at its full expected size — a truncated
+  /** A model counts as installed only at its full expected size, a truncated
    *  download would otherwise look valid and fail cryptically at transcribe time. */
   isInstalled(id: ModelId): boolean {
     const p = this.pathFor(id)
@@ -112,15 +114,40 @@ export class ModelStore extends EventEmitter {
     return { removed, bytes }
   }
 
-  list(): (ModelInfo & { installed: boolean })[] {
-    return CATALOG.map((m) => ({ ...m, installed: this.isInstalled(m.id) }))
+  /** `downloading` lets a window that opens mid-download show it before the next progress event. */
+  list(): (ModelInfo & { installed: boolean; downloading: boolean })[] {
+    return CATALOG.map((m) => ({ ...m, installed: this.isInstalled(m.id), downloading: this.inFlight.has(m.id) }))
+  }
+
+  isDownloading(id: ModelId): boolean {
+    return this.inFlight.has(id)
   }
 
   cancel(id: ModelId): void {
     this.cancelled.add(id)
   }
 
-  async download(id: ModelId): Promise<void> {
+  /**
+   * Resolves once the model is on disk (or the download was cancelled) and
+   * rejects when it fails. Asking again while it is running starts nothing
+   * new: both callers wait on the one download, which keeps reporting
+   * progress. Two writers on the same .part file would corrupt it.
+   */
+  download(id: ModelId): Promise<void> {
+    const running = this.inFlight.get(id)
+    if (running) return running
+    const job = this.fetchModel(id)
+      .catch((err: Error) => {
+        // Reported once here, however many callers are waiting on it.
+        this.emit('failed', { id, message: err.message })
+        throw err
+      })
+      .finally(() => { this.inFlight.delete(id) })
+    this.inFlight.set(id, job)
+    return job
+  }
+
+  private async fetchModel(id: ModelId): Promise<void> {
     if (this.isInstalled(id)) return
     this.cancelled.delete(id)
 

@@ -1,0 +1,1030 @@
+/* Settings route: the "Settings" frames in design.pen (y10BqR RyNhi OJsBu
+   xNum3 PZZvd hkPe4 PD5L4 q8FVWN). Root is <Bento direction="horizontal">:
+   "Tile / Panes" rail (240) beside the "Pane" column. Every class is `set-`.
+   Pencil strokes are inner, so they are drawn as inset box-shadows.
+   Owner: settings surface. */
+
+/* ---------------------------------------------------------------- accents */
+.set-accent--violet    { --acc: var(--violet);    --acc-on: var(--violet-on); }
+.set-accent--tangerine { --acc: var(--tangerine); --acc-on: var(--tangerine-on); }
+.set-accent--lime      { --acc: var(--lime);      --acc-on: var(--lime-on); }
+.set-accent--cyan      { --acc: var(--cyan);      --acc-on: var(--cyan-on); }
+.set-accent--pink      { --acc: var(--pink);      --acc-on: var(--pink-on); }
+
+/* ------------------------------------------------------------ type atoms */
+/* Mono tile label: $font-mono-new, $type-label 11, 500, letterSpacing 1.4, $fg-3 */
+.set-mono {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+.set-mono--ink { color: inherit; }
+.set-mono--tangerine { color: var(--tangerine); }
+.set-ink2 { color: var(--fg-2); }
+/* "Title" in tiles: $type-title-3 17 / 600 */
+.set-title3 {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--type-title-3);
+  font-weight: 600;
+  line-height: normal;
+  color: var(--fg);
+}
+/* Row-size title: 14 / 600 */
+.set-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: normal;
+  color: var(--fg);
+}
+/* "Description": 13 normal, lineHeight 1.45, $fg-2 */
+.set-desc {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--fg-2);
+}
+.set-desc--13 { line-height: 1.3; }
+/* "Note": 12 normal, lineHeight 1.4, $fg-3 */
+.set-note {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--fg-3);
+}
+.set-note.is-warn  { color: var(--warn); }
+.set-note.is-error { color: var(--error); }
+.set-hint {
+  flex: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg-3);
+}
+/* "Text": vertical, gap 4 */
+.set-text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+/* ----------------------------------------------- primitive size overrides */
+.q-select.set-fill, .set-fill { flex: 1 1 0; min-width: 0; width: auto; }
+.q-btn.set-btn32 { height: 32px; }
+.q-btn.set-btn28 { height: 28px; }
+.q-iconbtn.set-btn28sq, .q-iconbtn.set-pick__remove { width: 28px; height: 28px; }
+/* "Key ctrl" etc: Keycap instance at height 32, padding 0 12, label 14 */
+.q-keycap.set-key { height: 32px; padding: 0 12px; font-size: 14px; }
+/* "Pill / Small" with a mono label ("1 installed") */
+.q-pill.set-pill-mono { font-family: var(--font-mono-new); font-weight: 500; }
+
+/* Toggle with the knob driven by Motion (controls.tsx). "Toggle / Off" (qKcSg),
+   "Toggle / On" (HQZBU): 44 x 26, padding 3, knob 20; off $surface-3 with a 1
+   inner $line-strong stroke and a $fg-3 knob, on $lime with a $lime-on knob. */
+.set-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  width: 44px;
+  height: 26px;
+  padding: 3px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard),
+    opacity var(--dur-fast) var(--ease-standard);
+  -webkit-app-region: no-drag;
+}
+.set-toggle__knob {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--fg-3);
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.set-toggle.is-on { background: var(--lime); box-shadow: inset 0 0 0 1px transparent; }
+.set-toggle.is-on .set-toggle__knob { background: var(--lime-on); }
+.set-toggle:disabled { opacity: 0.5; cursor: default; }
+.set-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Select trigger: the "Select" node (C5tli) on a real button (controls.tsx). */
+.q-select.set-select {
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.q-select.set-select:disabled { cursor: default; }
+.q-select.set-select:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--line), 0 0 0 2px var(--focus); }
+/* The open list. Each row repeats the trigger's box (padding 9 12, 13 / 400),
+   so the selected row lands exactly on the trigger. */
+.set-menu {
+  position: fixed;
+  z-index: 310;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-e2);   /* Menu (I8sEup) stroke and shadow */
+  outline: none;
+  color: var(--fg);
+  -webkit-app-region: no-drag;
+}
+.set-menu__row {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+.set-menu__row.is-hi { background: var(--surface-3); }
+.set-menu__row.is-disabled { opacity: 0.5; cursor: default; }
+.set-menu__label {
+  min-width: 0;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg);
+}
+.set-menu__check { flex: none; color: var(--fg-3); }
+
+/* ------------------------------------------------------------------ rail */
+/* "Tile / Panes": vertical, gap 2, padding 12, width 240, $surface, radius-lg */
+.set-rail {
+  flex: 0 0 240px;
+  width: 240px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow-y: auto;
+}
+/* "Head": padding 8 10 12 10 */
+.set-rail__head { flex: none; display: flex; padding: 8px 10px 12px 10px; }
+/* "Pane Item" (tMXdE): h40, gap 10, padding 0 12 0 6, pill */
+.set-item {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--dur-hover-out) var(--ease-out);
+}
+.set-item:not(.is-active):hover {   /* house hover */
+  background: var(--scrim-dark);
+  transition-duration: var(--dur-hover-in);
+}
+/* The active fill is one shared element that travels between items (layoutId "pane-active"). */
+.set-item__pill { background: var(--fg); }
+.set-item__chip, .set-item__label { position: relative; }
+.set-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* "Chip": 28, round, $surface-2, icon 16 $fg-2 */
+.set-item__chip {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+/* "Label": 14 / 500 $fg-2 */
+.set-item__label {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg-2);
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+/* "Pane Item / Active" (sqx2K): $fg fill (the pill), accent chip, 600 $fg-inverse label */
+.set-item.is-active .set-item__chip { background: var(--acc); color: var(--acc-on); }
+.set-item.is-active .set-item__label { font-weight: 600; color: var(--fg-inverse); }
+.set-rail__spacer { flex: 1 1 0; min-height: 0; }
+/* "Footer": gap 10, padding 10 12, $surface-2, radius-md */
+.set-rail__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.set-rail__mark { color: var(--fg-2); }
+.set-rail__text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.set-rail__version {
+  font-family: var(--font-body); font-size: 13px; font-weight: 600; line-height: normal; color: var(--fg);
+}
+.set-rail__status {
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3);
+}
+
+/* ------------------------------------------------------- pane + layout */
+/* "Pane": vertical, gap $bento-gap, fill */
+.set-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bento-gap);
+}
+/* The pane switch wrapper (PresenceSwap) takes the Pane column's place in the Bento. */
+.set-swap {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* "Body" / "Row": horizontal, gap $bento-gap, fill */
+.set-body, .set-row {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  gap: var(--bento-gap);
+}
+/* "Column": vertical, gap $bento-gap, fill */
+.set-col {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bento-gap);
+}
+.set-col--300 { flex: 0 0 300px; width: 300px; }
+/* A row or tile that takes the rest of a column grows into it but never goes
+   below its own content (a caption that wraps onto more lines in a narrow
+   window): the column scrolls instead of clipping it. */
+.set-col { overflow-y: auto; }
+.set-col > .set-row, .set-col > .set-fillh { flex: 1 0 auto; }
+.set-tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--fg);
+}
+/* "Top": horizontal, space_between, center */
+.set-tile__top { flex: none; display: flex; justify-content: space-between; align-items: center; }
+
+/* "Tile / Pane header": vertical, space_between, padding 20 24 22 24, h132, radius-xl */
+.set-head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 132px;
+  padding: 20px 24px 22px 24px;
+  border-radius: var(--radius-xl);
+  background: var(--acc);
+  color: var(--acc-on);
+}
+.set-head__top { display: flex; justify-content: space-between; align-items: center; }
+.set-head__label {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+}
+/* "Bottom": horizontal, space_between, alignItems end */
+.set-head__bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+/* "Headline": $font-display 40 / 800, lineHeight 1, letterSpacing -1.2 */
+.set-head__headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.2px;
+  color: inherit;
+  white-space: nowrap;
+}
+/* "Caption": 14 / 500 */
+.set-head__caption {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: normal;
+  text-align: right;
+}
+
+/* -------------------------------------------------------------- Shortcuts */
+/* "Tile / Hold to talk" etc: vertical, space_between, padding 20, fill */
+.set-sc { flex: 1 1 0; justify-content: space-between; padding: 20px; }
+/* "Top": vertical, gap 14 */
+.set-sc__top { display: flex; flex-direction: column; gap: 14px; }
+/* "Icon Chip": 36, round, $surface-3, icon 20 $fg */
+.set-chip36 {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--fg);
+}
+/* "Control": horizontal, center, gap 6 */
+.set-sc__control { flex: none; display: flex; align-items: center; gap: 6px; }
+/* "Spacer": fill × 1 */
+.set-sc__spacer { flex: 1 1 0; min-width: 0; display: flex; justify-content: flex-end; }
+.set-sc__failed {
+  font-family: var(--font-body); font-size: 12px; font-weight: 500; line-height: normal; color: var(--error);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* "Recorder": fill, h36, gap 8, padding 0 12, $tangerine-soft, stroke 1.5 $tangerine, radius-sm */
+.set-recorder {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  background: var(--tangerine-soft);
+  box-shadow: inset 0 0 0 1.5px var(--tangerine);
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+.set-recorder__dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tangerine); }
+.set-recorder__prompt {
+  font-family: var(--font-mono-new); font-size: 13px; font-weight: 500; line-height: normal; color: var(--fg);
+}
+.set-recorder__caret {
+  flex: none; width: 1.5px; height: 16px; background: var(--tangerine);
+  animation: set-caret 1s steps(1) infinite;
+}
+@keyframes set-caret { 50% { opacity: 0; } }
+
+/* ---------------------------------------------------------------- General */
+/* "Tile / Permissions": vertical, space_between, padding 20, fill */
+.set-perms { flex: 1 1 0; justify-content: space-between; padding: 20px; gap: 16px; }
+.set-perms__top { display: flex; flex-direction: column; gap: 6px; }
+.set-perms__head { display: flex; justify-content: space-between; align-items: center; }
+.set-perms__list { display: flex; flex-direction: column; gap: 8px; }
+/* "Perm / Microphone": center, gap 10, padding 10 10 10 14, $surface-2, radius-md */
+.set-perm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.set-perm__icon { color: var(--fg-2); }
+.set-perm__label {
+  flex: 1 1 0; min-width: 0;
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; line-height: normal; color: var(--fg);
+}
+/* "Tile / Todo edge": width 280, padding 20, $cyan */
+.set-edge {
+  flex: 0 0 280px;
+  width: 280px;
+  justify-content: space-between;
+  padding: 20px;
+  background: var(--acc);
+  color: var(--acc-on);
+}
+.set-edge__bottom { display: flex; flex-direction: column; gap: 4px; }
+.set-edge__value {
+  font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: -0.6px; line-height: normal;
+}
+.set-edge__caption {
+  font-family: var(--font-body); font-size: var(--type-body-sm); font-weight: 400; line-height: 1.4;
+}
+
+/* -------------------------------------------------------------- Dictation */
+/* "Tile / Microphone": width 340, vertical, gap 10, padding 14 */
+.set-mic { flex: 0 0 340px; width: 340px; gap: 8px; padding: 14px; overflow-y: auto; }
+/* "Head": vertical, gap 4, padding 6 6 2 6 */
+.set-mic__head { flex: none; display: flex; flex-direction: column; gap: 4px; padding: 6px 6px 2px 6px; }
+
+/* "Notice / Disconnected", "Note", "Notice / Cloud": gap 10, radius-md */
+.set-notice {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+}
+.set-notice--warn  { background: var(--warn-soft); }
+.set-notice--warn .set-notice__icon { color: var(--warn); }
+.set-notice--error { background: var(--error-soft); align-items: center; }
+.set-notice--error .set-notice__icon { color: var(--error); }
+.set-notice--cyan  { background: var(--cyan-soft); }
+.set-notice--cyan .set-notice__icon { color: var(--cyan); }
+.set-notice--cloud { padding: 12px 14px; }
+/* "Message": 13 / 500, lineHeight 1.4, $fg */
+.set-notice__msg {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--fg);
+}
+.set-notice__msg--400 { font-weight: 400; }
+/* Languages "Note": 12 normal, lineHeight 1.45 */
+.set-notice__msg--sm { font-size: 12px; font-weight: 400; line-height: 1.45; }
+
+/* "Devices": vertical, gap 2 */
+.set-devices { flex: none; display: flex; flex-direction: column; gap: 2px; }
+/* "Device Row" (Pt9OA): center, gap 12, padding 10 12, radius-md */
+.set-device {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+}
+.set-device:not(.is-selected):hover { background: var(--scrim-dark); }   /* house hover */
+.set-device:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* "Device Row / Selected" (f4b9z): $violet-soft, stroke 1.5 $violet (inner) */
+.set-device.is-selected { background: var(--violet-soft); box-shadow: inset 0 0 0 1.5px var(--violet); }
+/* "Icon Chip": 34, round, $surface-3; icon 16 $fg-2 (selected: $violet / $violet-on) */
+.set-device__chip {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--fg-2);
+}
+.set-device.is-selected .set-device__chip { background: var(--violet); color: var(--violet-on); }
+.set-device__text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* "Name": 14 / 600, lineHeight 1.35 */
+.set-device__name {
+  font-family: var(--font-body); font-size: 14px; font-weight: 600; line-height: 1.35; color: var(--fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* "Detail": 12 normal, lineHeight 1.35, $fg-3 */
+.set-device__detail {
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: 1.35; color: var(--fg-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.set-device__detail.is-success { color: var(--success); }
+.set-device__detail.is-warn { color: var(--warn); }
+/* "Radio": 20, round, stroke 2 $fg-3 (selected: $violet-fg + 10 dot) */
+.set-device__radio {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 2px var(--fg-3);
+}
+.set-device.is-selected .set-device__radio { box-shadow: inset 0 0 0 2px var(--violet-fg); }
+.set-device__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--violet-fg); }
+
+/* "Input level": vertical, gap 8, padding 0 6 4 6 */
+/* Pinned to the bottom of the tile: the auto margin is the flexible gap
+   between the device list and the meter (at least the tile's gap 8). */
+.set-level { flex: none; margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 0 6px 2px 6px; }
+.set-level__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.set-level__device {
+  min-width: 0;
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* "Bars": horizontal, alignItems end, gap 4, h24; each bar fill width, radius 2 */
+.set-level__bars { display: flex; align-items: flex-end; gap: 4px; height: 24px; }
+/* Resting height 3; SpectrumBars writes 3 to 24 from the live spectrum. */
+.set-level__bar { flex: 1 1 0; min-width: 0; height: 3px; border-radius: 2px; background: var(--surface-3); }
+.set-level__bar.is-lit { background: var(--violet); }
+/* Hint and Test button. The hint takes what the button leaves and wraps inside
+   it, so the button keeps its size and its place (it is a toggle: it must not
+   move when a long error replaces the hint). Only a row too narrow for both
+   puts the button on a line of its own, still at the end. */
+.set-level__foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.set-level__hint {
+  flex: 1 1 140px; min-width: 0;
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3);
+}
+.set-level__foot .q-btn { flex: none; margin-left: auto; }
+
+/* "Tile / Transcription" / "Tile / Output": vertical, space_between, padding 18 */
+.set-stat { flex: 1 1 0; justify-content: space-between; padding: 18px; gap: 12px; }
+.set-stat__bottom { display: flex; flex-direction: column; gap: 4px; }
+/* "Value": display $type-title-2 22 / 800, letterSpacing -0.4 */
+.set-stat__value {
+  font-family: var(--font-display); font-size: var(--type-title-2); font-weight: 800;
+  letter-spacing: -0.4px; line-height: normal; color: var(--fg);
+}
+/* "Caption": 12 normal, lineHeight 1.4, $fg-2 */
+.set-stat__caption {
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: 1.4; color: var(--fg-2);
+}
+
+/* "Tile / Volume" / "Tile / Calendar": vertical, gap 16, padding 18 20 */
+.set-ctl { flex: none; gap: 16px; padding: 18px 20px; }
+/* "Head": horizontal, center, gap 22 */
+.set-ctl__head { display: flex; align-items: center; gap: 22px; }
+/* "Duck to" / "Calendar": horizontal, center, gap 14 */
+.set-ctl__line { display: flex; align-items: center; gap: 14px; }
+.set-ctl__label {
+  font-family: var(--font-body); font-size: 13px; font-weight: 600; line-height: normal; color: var(--fg);
+}
+.set-ctl__value {
+  font-family: var(--font-mono-new); font-size: 13px; font-weight: 500; line-height: normal; color: var(--fg);
+}
+/* "Track": fill, h20, center. Fill h6 $violet radius [3,0,0,3]; Knob 18 $fg stroke 3 $violet;
+   Rest h6 $surface-3 radius [0,3,3,0]. The fill width follows the value. */
+.set-slider {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 20px;
+  -webkit-app-region: no-drag;
+}
+.set-slider__fill {
+  flex: none;
+  width: calc((100% - 18px) * var(--f, 0.25));
+  height: 6px;
+  border-radius: 3px 0 0 3px;
+  background: var(--violet);
+}
+.set-slider__knob {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: inset 0 0 0 3px var(--violet);
+}
+.set-slider__rest { flex: 1 1 0; height: 6px; border-radius: 0 3px 3px 0; background: var(--surface-3); }
+.set-slider__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.set-slider:focus-within .set-slider__knob { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* -------------------------------------------------------------- Languages */
+/* "Tile / All languages": vertical, gap 14, padding 16, fill */
+.set-langs { flex: 1 1 0; gap: 14px; padding: 16px; overflow-y: auto; }
+/* "Toolbar": center, gap 12 */
+.set-langs__toolbar { flex: none; display: flex; align-items: center; gap: 12px; }
+/* "Search" (xWpB8): fill, h40, gap 10, padding 0 14, $surface-2, stroke 1 $line, radius-sm */
+.set-search {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: text;
+}
+.set-search:focus-within { box-shadow: inset 0 0 0 1px var(--line), 0 0 0 2px var(--focus); }
+.set-search__icon { color: var(--fg-3); }
+.set-search__input {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg);
+}
+.set-search__input::placeholder { color: var(--fg-3); }
+/* "Auto-detect": center, gap 10, padding 0 4; label 13 / 500 $fg-2 */
+.set-auto { flex: none; display: flex; align-items: center; gap: 10px; padding: 0 4px; }
+.set-auto__label {
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; line-height: normal; color: var(--fg-2);
+}
+/* "Grid Row": horizontal, gap 8 */
+.set-langs__row { flex: none; display: flex; gap: 8px; }
+.set-langs__row.is-dim { opacity: 0.4; }
+/* "Language Card" (YXze6): fill, vertical, gap 2, padding 12 14, $surface-2, stroke 1.5 $line, radius-md */
+.set-lang {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+}
+.set-lang:disabled { cursor: default; }
+.set-lang:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.set-lang:not(.is-on):not(:disabled):hover { box-shadow: inset 0 0 0 1.5px var(--line-strong); }   /* house hover */
+/* "Language Card / Selected" (FlIcc): $cyan-soft, stroke 1.5 $cyan */
+.set-lang.is-on { background: var(--cyan-soft); box-shadow: inset 0 0 0 1.5px var(--cyan); }
+.set-lang--ghost { visibility: hidden; }
+/* "Head": space_between, center, gap 8 */
+.set-lang__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+/* "Name": 13.5 / 550 $fg */
+.set-lang__name {
+  font-family: var(--font-body); font-size: 13.5px; font-weight: 550; line-height: normal; color: var(--fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.set-lang__check { color: var(--cyan); }
+/* "Native": 12 normal $fg-2 */
+.set-lang__native {
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.set-langs__spacer { flex: 1 0 0; }
+
+/* "Tile / Selected": width 280, vertical, gap 12, padding 16 */
+.set-picked { flex: 0 0 280px; width: 280px; gap: 12px; padding: 16px; }
+/* "Head": space_between, center, padding 4 4 0 4 */
+.set-picked__head { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 0 4px; }
+/* "List": vertical, gap 6 */
+/* Hugs its rows; with more languages than the tile holds, the list scrolls
+   and the notices under it stay in view. */
+.set-picked__list { flex: 0 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.set-picked__list > * { flex: none; }
+.set-picked__spacer { flex: 1 1 0; min-height: 0; }
+/* "Selected / English": center, gap 10, padding 10 8, $surface-2, radius-md */
+.set-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.set-pick[draggable='true'] { cursor: grab; }
+.set-pick.is-dragging { opacity: 0.5; }
+.set-pick__grip { color: var(--fg-3); }
+/* "Order": 24, round, $cyan; N mono 12 / 600 $cyan-on */
+.set-pick__order {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--cyan);
+  color: var(--cyan-on);
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+}
+.set-pick__text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.set-pick__name {
+  font-family: var(--font-body); font-size: 14px; font-weight: 600; line-height: normal; color: var(--fg);
+}
+.set-pick__native {
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3);
+}
+
+/* ---------------------------------------------------------- Speech models */
+/* "Tile / Where transcription runs": vertical, gap 12, padding 16 */
+.set-where { flex: none; gap: 12px; padding: 16px; }
+.set-fillh { flex: 1 1 0; }
+/* "Options": horizontal, gap 8 (children keep their own height) */
+.set-where__options { flex: none; display: flex; align-items: flex-start; gap: 8px; }
+/* "Option": fill, vertical, gap 8, padding 10 12 12 12, $surface-2, stroke 1.5 $line, radius-md */
+.set-option {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  text-align: left;
+  color: var(--fg);
+  cursor: pointer;
+}
+.set-option:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* "· Selected": $pink-soft, stroke 1.5 $pink */
+.set-option.is-on { background: var(--pink-soft); box-shadow: inset 0 0 0 1.5px var(--pink); }
+/* One line: radio, icon, title. The title wraps before anything is squeezed. */
+.set-option__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.set-option__icon { flex: none; }
+.set-option__icon { color: var(--fg-2); }
+.set-option.is-on .set-option__icon { color: var(--pink); }
+/* "Radio": 20, stroke 1.5 $line-strong (on: $pink + 10 dot) */
+.set-option__radio {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+}
+.set-option.is-on .set-option__radio { box-shadow: inset 0 0 0 1.5px var(--pink); }
+.set-option__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--pink); }
+.set-option__title {
+  min-width: 0;
+  font-family: var(--font-body); font-size: 14px; font-weight: 600; line-height: normal; color: var(--fg);
+}
+.set-option__desc {
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: 1.3; color: var(--fg-2);
+}
+/* "Fields": horizontal, gap 8 */
+.set-fields { flex: none; display: flex; gap: 8px; }
+.set-fields--cloud { padding: 4px 0 0 0; }
+.set-fields--local { padding: 16px 0 0 0; }
+/* "Field": vertical, gap 6; label 13 normal $fg-2 */
+.set-field { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.set-field__label {
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: normal; color: var(--fg-2);
+}
+.set-field__row { display: flex; align-items: center; gap: 8px; }
+.set-field--key { flex: none; padding: 4px 4px 0 4px; }
+/* "Value": space_between, center, padding 9 12, $surface-2, stroke 1 $line, radius-sm */
+.set-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.set-value__amount {
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: normal; color: var(--fg);
+}
+.set-value__icon { color: var(--fg-3); }
+/* "Model Input" (ZFI3w): padding 8 11, $surface-2, stroke 1 $line, radius-sm, mono 12.5 */
+.set-input {
+  display: block;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  outline: none;
+  font-family: var(--font-mono-new);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+.set-input::placeholder { color: var(--fg-3); }
+.set-input:focus { box-shadow: inset 0 0 0 1px var(--line), 0 0 0 2px var(--focus); }
+.set-input:disabled { opacity: 0.5; }
+.set-input--150 { width: 150px; }
+.set-input--84 { width: 84px; }
+
+/* "Tile / On this Mac": vertical, gap 12, padding 16, fill */
+.set-local { flex: 1 1 0; gap: 12px; padding: 16px; }
+.set-local__head { flex: none; display: flex; align-items: center; gap: 12px; }
+/* 40 icon tile, radius-sm */
+.set-icon40 {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+}
+.set-icon40--lime { background: var(--lime-soft); color: var(--lime); }
+.set-icon40--pink { background: var(--pink-soft); color: var(--pink); }
+.set-local__spacer { flex: 1 1 0; min-height: 0; }
+/* "Footer": center, gap 8, padding-top 12, stroke top 1 $line */
+.set-local__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 0 0;
+  box-shadow: inset 0 1px 0 var(--line);
+  color: var(--fg-3);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: normal;
+}
+/* "Group / Rows" with Row instances at padding 14 20 */
+.set-group--14 { flex: none; }
+.set-group--14 .q-row { padding: 14px 20px; }
+
+/* "Tile / Local models" / "Tile / Cloud": width 330, vertical, gap 10, padding 14 */
+.set-models { flex: 0 0 330px; width: 330px; gap: 10px; padding: 14px; }
+/* "Head": space_between, center, padding 4 4 2 4 */
+.set-models__head { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 4px 4px 2px 4px; }
+.set-models__head--26 { height: 26px; }
+.set-models__list { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+/* "Model": vertical, gap 8, padding 12, $surface-2, stroke 1.5 $line (in use: $pink), radius-md */
+.set-model {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+}
+.set-model.is-active { box-shadow: inset 0 0 0 1.5px var(--pink); }
+.set-model__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.set-model__name {
+  font-family: var(--font-body); font-size: 14px; font-weight: 600; line-height: normal; color: var(--fg);
+}
+.set-model__size {
+  flex: none;
+  font-family: var(--font-mono-new); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3);
+}
+.set-model__desc {
+  margin: 0;
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: 1.3; color: var(--fg-2);
+}
+/* "Actions": center, gap 10, padding-top 2 */
+.set-model__actions { display: flex; align-items: center; gap: 10px; padding: 2px 0 0 0; }
+.set-model__spacer { flex: 1 1 0; }
+.set-model__pct {
+  flex: none;
+  font-family: var(--font-body); font-size: 12px; font-weight: 500; line-height: normal; color: var(--fg-2);
+}
+/* "Badge / In use": h28, padding 0 12, $pink, pill; label 13 / 600 $pink-on */
+.set-inuse {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--pink);
+  color: var(--pink-on);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: normal;
+}
+/* "Progress": fill × 6, $surface-3, radius 999; "Fill" $pink */
+.set-progress { flex: 1 1 0; height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.set-progress__fill { display: block; height: 100%; border-radius: 999px; background: var(--pink); }
+/* "Empty / Local models": vertical, center/center, gap 12, padding 20, $surface-2, radius-md, fill */
+.set-empty {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.set-empty__text { display: flex; flex-direction: column; align-items: center; gap: 4px; align-self: stretch; }
+.set-empty__desc {
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: 1.3; color: var(--fg-2);
+  text-align: center;
+}
+
+/* ------------------------------------------------------------- AI cleanup */
+.set-group--fill { flex: 1 1 0; min-width: 0; align-self: stretch; }
+.set-ai__custom { display: flex; align-items: center; gap: 8px; }
+/* "Tile / API key": vertical, gap 12, padding 18 */
+.set-key { flex: none; gap: 12px; padding: 18px; }
+.set-key__caption {
+  margin: 0;
+  font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: 1.4; color: var(--fg-2);
+}
+.set-key__actions { display: flex; align-items: center; gap: 8px; }
+/* "Result": center, gap 8, padding 8 10, $success-soft, radius-sm; 12 / 600 $success */
+.set-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+}
+.set-result.is-ok  { background: var(--success-soft); color: var(--success); }
+.set-result.is-bad { background: var(--error-soft); color: var(--error); }
+/* "Tile / How it works": vertical, space_between, padding 18, $tangerine-soft */
+.set-how { flex: 1 1 0; justify-content: space-between; gap: 6px; padding: 18px; background: var(--tangerine-soft); }
+.set-how__top { display: flex; align-items: center; gap: 8px; color: var(--tangerine); }
+.set-how__example { display: flex; flex-direction: column; gap: 6px; }
+/* "Said" / "Pasted": padding 8 10, $surface, radius-sm, mono 12 lineHeight 1.5 */
+.set-how__said, .set-how__pasted {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.set-how__said { color: var(--fg-2); }
+.set-how__pasted { color: var(--fg); box-shadow: inset 0 0 0 1px var(--tangerine); }
+.set-how__body {
+  margin: 0;
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--fg);
+}
+
+/* ------------------------------------------------------------------ About */
+/* "Tile / Version": vertical, space_between, padding 22, $lime */
+.set-version { flex: 1 1 50%; justify-content: space-between; padding: 22px; background: var(--acc); color: var(--acc-on); }
+.set-version__bottom { display: flex; flex-direction: column; gap: 6px; }
+/* "Value": display $type-display 56 / 800, lineHeight 1, letterSpacing -1.6 */
+.set-version__value {
+  font-family: var(--font-display); font-size: var(--type-display); font-weight: 800;
+  line-height: 1; letter-spacing: -1.6px;
+}
+.set-version__caption {
+  font-family: var(--font-body); font-size: 14px; font-weight: 500; line-height: normal;
+}
+.set-version__actions { display: flex; padding: 10px 0 0 0; }
+/* "Check": Button / Primary with fill $lime-on, label $lime */
+.q-btn.set-version__btn { background: var(--lime-on); color: var(--lime); }
+/* "Tile / Speech recognition": vertical, space_between, padding 20 */
+/* basis 50%, not 0: the two tiles have different paddings (22 vs 20) and a
+   0 basis would split the leftover after padding, not the outer width. */
+.set-specs-tile { flex: 1 1 50%; justify-content: space-between; padding: 20px; }
+.set-specs { display: flex; flex-direction: column; }
+.set-specs__divider { height: 1px; background: var(--line); }
+/* spec row: space_between, center, padding 12 0 */
+.set-spec { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; }
+.set-spec__key {
+  flex: none;
+  font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: normal; color: var(--fg-2);
+}
+.set-spec__value {
+  min-width: 0;
+  font-family: var(--font-mono-new); font-size: 13px; font-weight: 500; line-height: normal; color: var(--fg);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

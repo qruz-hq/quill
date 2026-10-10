@@ -149,7 +149,7 @@ export class TodoStore {
   /**
    * Every project ever used, in first-seen order, with a count of its open
    * items. A project whose todos are all done still appears (count 0) so the
-   * autocomplete keeps offering it — finishing everything in a project should
+   * autocomplete keeps offering it, finishing everything in a project should
    * not make its name vanish from your fingers.
    */
   projects(): Project[] {

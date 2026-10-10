@@ -1,0 +1,208 @@
+/* Hub, Transforms (gsPhJ). Owner: transforms surface.
+   Values are the node values from design.pen; ids in each comment. */
+
+/* Row 1 (pBlLZ): row, gap $bento-gap, height 200 */
+.tf__row1 { display: flex; gap: var(--bento-gap); height: 200px; flex: none; }
+/* Tile / Transforms hero (J9ybFh): fill, tangerine, radius-xl, padding 24, space-between */
+.tf__hero { flex: 1 1 0; }
+/* Label Group (FOC0M): gap 10, center, from TileTop's `after` slot.
+   Beta (jh4AR): padding 4 8, $scrim-dark, pill; 11/600 */
+.tf__beta {
+  padding: 4px 8px;
+  background: var(--scrim-dark);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: normal;
+  color: var(--tangerine-on);
+}
+/* New transform (l3vXR): Button / Primary, fill $tangerine-on, label $tangerine */
+.q-btn.tf__new { background-color: var(--tangerine-on); color: var(--tangerine); }
+/* Headline (q3075): display 44/800, line-height 1, ls -1.4 */
+.tf__headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.4px;
+  color: var(--tangerine-on);
+}
+/* Shortcut (XIt7L): row, gap 8, center; text 14/500 */
+.tf__shortcut { display: flex; align-items: center; gap: 8px; }
+.tf__shortcut-text { font-family: var(--font-body); font-size: 14px; font-weight: 500; line-height: normal; color: var(--tangerine-on); }
+
+/* Tile / Last applied (AT6fC): violet, width 260, padding 20, space-between */
+.tf__last { flex: 0 0 260px; width: 260px; }
+/* Bottom (WhXxz): vertical, gap 4 */
+.tf__last-bottom { display: flex; flex-direction: column; gap: 4px; }
+/* Value: display 28/800, ls -0.6. A long transform name wraps to two lines
+   and then clips, so it never pushes the tile's fixed row. */
+.tf__last-value {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  line-height: normal;
+}
+.tf__last-caption { font-family: var(--font-body); font-size: var(--type-body-sm); font-weight: 400; line-height: normal; }
+/* Undo (N9yXcI): gap 6, padding-top 8, center; label 13/600 */
+.tf__undo { display: flex; align-items: center; gap: 6px; padding: 8px 0 0 0; }
+.tf__undo-label { font-family: var(--font-body); font-size: var(--type-body-sm); font-weight: 600; line-height: normal; }
+/* Key ⌘Z (wbkpB): Keycap with fill $scrim-dark-2, stroke $scrim-light-2, ink $violet-on.
+   Pencil renders this instance 28 high (it does not pin height 24 like the others). */
+.q-keycap.tf__undo-key {
+  height: 28px;
+  background: var(--scrim-dark-2);
+  box-shadow: inset 0 -2px 0 var(--scrim-light-2), inset 0 0 0 1px var(--scrim-light-2);
+  color: var(--violet-on);
+}
+
+/* Grid (sUfLc): vertical, gap $bento-gap, fill. Rows grow to fill but never
+   shrink below their cards' content: with 6+ transforms (3–4 rows) the Bento
+   scrolls instead of squashing the cards. */
+.tf__grid { display: flex; flex-direction: column; gap: var(--bento-gap); flex: 1 0 auto; }
+/* Row (aFTTX): row, gap $bento-gap, fill */
+.tf__grid-row { display: flex; gap: var(--bento-gap); flex: 1 0 auto; }
+/* Same horizontal padding as a card, so a card beside empty cells keeps the
+   width of the cards above it. */
+.tf__cell-gap { flex: 1 1 0; padding: 0 18px; }
+
+/* Transform card (e0f1v): vertical, gap 10, padding 18, space-between, $surface, radius-lg */
+.tf__card {
+  position: relative;
+  isolation: isolate;                  /* keeps the update highlight under the text */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+}
+/* The card's fill ($surface) and the Create card's stroke live on a text-free
+   layer: it is what morphs into the dialog and back (docs/MOTION.md §4.8). */
+.tf__ghost { position: absolute; inset: 0; z-index: -3; background: var(--surface); pointer-events: none; }
+.tf__ghost--create { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+/* The cell a dialog is closing back into stays above its neighbours. */
+.tf__card[data-returning], .tf__create[data-returning] { z-index: 2; }
+.tf__card:focus-visible, .tf__create:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Hover lift (§4.8, §2.6): the card rises 2 px (Motion) and this shadow layer
+   fades in. box-shadow itself never animates. */
+.tf__card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  border-radius: inherit;
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tf__card:hover { z-index: 1; }
+.tf__card:hover::after { opacity: 1; }
+/* Update highlight: $violet-soft over the card, behind its content */
+.tf__flash { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--violet-soft); pointer-events: none; }
+.tf__card--lime      { --acc: var(--lime);      --acc-on: var(--lime-on);      --acc-soft: var(--lime-soft); }
+.tf__card--violet    { --acc: var(--violet);    --acc-on: var(--violet-on);    --acc-soft: var(--violet-soft); }
+.tf__card--cyan      { --acc: var(--cyan);      --acc-on: var(--cyan-on);      --acc-soft: var(--cyan-soft); }
+.tf__card--pink      { --acc: var(--pink);      --acc-on: var(--pink-on);      --acc-soft: var(--pink-soft); }
+.tf__card--tangerine { --acc: var(--tangerine); --acc-on: var(--tangerine-on); --acc-soft: var(--tangerine-soft); }
+/* Top: row, space-between, center */
+.tf__card-top { display: flex; justify-content: space-between; align-items: center; }
+/* Key: gap 4, padding 4 8, accent, radius-xs; mono 12/600 accent ink */
+.tf__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--acc);
+  border-radius: var(--radius-xs);
+}
+.tf__key-label {
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  color: var(--acc-on);
+}
+/* More: Icon Button 28×28, icon $fg-3 */
+.q-iconbtn.tf__more { width: 28px; height: 28px; color: var(--fg-3); }
+/* Text: vertical, gap 4, padding-top 6, height fill */
+.tf__card-text { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 0 0; flex: 1 1 auto; min-height: 0; }
+/* Name: display $type-title-3 (17) / 700, ls -0.2 */
+.tf__card-name {
+  font-family: var(--font-display);
+  font-size: var(--type-title-3);
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  line-height: normal;
+  color: var(--fg);
+}
+/* Description: body 13, line-height 1.35, $fg-2 */
+.tf__card-desc { font-family: var(--font-body); font-size: var(--type-body-sm); font-weight: 400; line-height: 1.35; color: var(--fg-2); }
+/* Preview: padding 10 12, accent-soft, radius-sm; mono 11.5, line-height 1.45, $fg */
+.tf__preview { flex: none; padding: 10px 12px; background: var(--acc-soft); border-radius: var(--radius-sm); }
+.tf__preview-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: pre-wrap;
+  font-family: var(--font-mono-new);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
+/* Create your own (rxuhp): vertical, gap 10, padding 18, center/center,
+   1.5px $line-strong stroke, radius-lg, no fill */
+.tf__create {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 18px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-lg);
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  /* Hover (§4.13): 60 ms in, 160 ms out */
+  transition: background-color var(--dur-hover-out) var(--ease-out);
+}
+.tf__create:not(:disabled):hover { background: var(--scrim-dark); transition-duration: var(--dur-hover-in); }
+.tf__create:focus-visible { transition: none; }
+.tf__create:disabled { cursor: default; opacity: 0.6; }
+/* Plus: 40×40, $surface-2, pill; icon plus/20 $fg */
+.tf__plus {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  color: var(--fg);
+}
+.tf__create-name { font-family: var(--font-display); font-size: var(--type-title-3); font-weight: 700; line-height: normal; color: var(--fg); }
+.tf__create-desc { font-family: var(--font-body); font-size: var(--type-body-sm); font-weight: 400; line-height: normal; color: var(--fg-2); }

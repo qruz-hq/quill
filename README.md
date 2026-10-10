@@ -5,18 +5,18 @@ into whatever app you are using.
 
 Transcription runs entirely on your machine with [whisper.cpp](https://github.com/ggerganov/whisper.cpp).
 Nothing is uploaded unless you opt into AI cleanup, and even then only the
-transcript text — never audio.
+transcript text, never audio.
 
 ## What it does
 
-- **Dictation** — hold `fn` (or `⌃⌥D`) and speak; text is typed into the focused app
-- **Whisper, on-device** — pick a model in Settings; only the one you choose downloads
-- **Multi-language** — select several and it detects which you spoke
-- **Snippets** — say a trigger, get a longer phrase typed
-- **Transforms** — `⌥1`–`⌥9` reshape the last dictation
-- **Scratchpad** — `⌥S` floating notepad; `⌥M` records straight into a note
-- **Insights** — contribution grid, words per minute, most-used words
-- **AI cleanup** (optional) — your own OpenAI key tidies punctuation and lists
+- **Dictation**, hold `fn` (or `⌃⌥D`) and speak; text is typed into the focused app
+- **Whisper, on-device**, pick a model in Settings; only the one you choose downloads
+- **Multi-language**, select several and it detects which you spoke
+- **Snippets**, say a trigger, get a longer phrase typed
+- **Transforms**, `⌥1`–`⌥9` reshape the last dictation
+- **Scratchpad**, `⌥S` floating notepad; `⌥M` records straight into a note
+- **Insights**, contribution grid, words per minute, most-used words
+- **AI cleanup** (optional), your own OpenAI key tidies punctuation and lists
 
 ## Requirements
 

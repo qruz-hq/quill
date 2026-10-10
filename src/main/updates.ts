@@ -8,7 +8,7 @@ const RELEASES_API = (repo: string): string => `https://api.github.com/repos/${r
  * Deliberately notify-only rather than electron-updater: Squirrel.Mac verifies
  * the signature of a downloaded build before applying it, so an ad-hoc signed
  * app cannot update itself. Once the app is signed with a Developer ID, swap
- * this for autoUpdater — see docs/RELEASING.md.
+ * this for autoUpdater, see docs/RELEASING.md.
  */
 export type UpdateInfo = {
   current: string

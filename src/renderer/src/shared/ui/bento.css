@@ -1,0 +1,12 @@
+/* Bento: the body frame under the hub title bar ("Bento" in every Hub and
+   Settings frame of design.pen). Owner: shared/ui. */
+.q-bento {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;              /* layout: vertical (Hub frames) */
+  gap: var(--bento-gap);               /* $bento-gap 12 */
+  padding: 4px 16px 16px 16px;         /* [4,16,16,16] */
+  overflow: auto;
+}
+.q-bento--horizontal { flex-direction: row; }  /* Settings frames: layout horizontal */

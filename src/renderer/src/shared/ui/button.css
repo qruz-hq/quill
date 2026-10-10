@@ -1,0 +1,54 @@
+/* Button: Atoms "Button / Primary" (gc2lY), "Button / Accent" (OUTuX),
+   "Button / Ghost" (qiGgN); "Icon Button" (ayoGp). Owner: shared/ui. */
+.q-btn {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;                            /* Primary/Ghost gap 7 */
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.q-btn--sm { height: 30px; }           /* the 30-high instances (Banner "Fix", "Not now") */
+.q-btn--primary { background: var(--fg); color: var(--fg-inverse); }
+.q-btn--accent  { background: var(--violet); color: var(--violet-on); gap: 8px; }
+/* Todos "Add" (cMgNf): Primary's shape, $lime fill, $lime-on ink. */
+.q-btn--lime    { background: var(--lime); color: var(--lime-on); }
+.q-btn--ghost   {
+  background: var(--surface-3);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--line);   /* stroke $line */
+}
+.q-btn:focus-visible, .q-iconbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.q-btn:disabled { opacity: 0.45; cursor: default; }
+/* Hover/press are house states (the design has none): a light scrim over the fill. */
+.q-btn:not(:disabled):hover  { background-image: linear-gradient(var(--scrim-light), var(--scrim-light)); }
+.q-btn--ghost:not(:disabled):hover { background-image: linear-gradient(var(--scrim-dark), var(--scrim-dark)); }
+
+.q-iconbtn {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--fg-2);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.q-iconbtn--sm { width: 30px; height: 30px; }
+.q-iconbtn:not(:disabled):hover { background: var(--scrim-dark); }
+.q-iconbtn:disabled { opacity: 0.45; cursor: default; }

@@ -1,0 +1,266 @@
+/* Hub, Snippets (gSWzJ). Owner: snippets surface.
+   Values are the node values from design.pen; ids in each comment. */
+
+/* Row 1 (elGj7): row, gap $bento-gap, height 212 */
+.snip__row1 { display: flex; gap: var(--bento-gap); height: 212px; flex: none; }
+/* Tile / Snippets hero (lGdgi): fill, pink, radius-xl, padding 24, space-between */
+.snip__hero { flex: 1 1 0; }
+/* New snippet (d7a4mM): Button / Primary, fill $pink-on, label $pink */
+.q-btn.snip__new { background-color: var(--pink-on); color: var(--pink); gap: 6px; }
+/* Headline (j5qTcm): display 44/800, line-height 1, letter-spacing -1.4 */
+.snip__headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1.4px;
+  color: var(--pink-on);
+}
+/* Tile / Expansions (WyhAR): Tile / Lime, width 260, height fill */
+.snip__stat { flex: 0 0 260px; width: 260px; }
+
+/* Example (os8hs / fC5Ad): row, gap 10, center */
+.snip-example { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* You say: gap 8, padding 8 14 8 10, $scrim-light, pill */
+.snip-example__say {
+  display: inline-flex;
+  flex: none;
+  /* A very long trigger ends in an ellipsis and leaves room for what Quill types. */
+  max-width: 60%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 10px;
+  background: var(--scrim-light);
+  border-radius: var(--radius-pill);
+  color: var(--pink-on);
+}
+.snip-example__arrow { flex: none; color: var(--pink-on); }
+/* Quill types: padding 8 14, $pink-on, pill; Expansion 14/600 $pink */
+.snip-example__types {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 14px;
+  background: var(--pink-on);
+  border-radius: var(--radius-pill);
+}
+.snip-example__trigger,
+.snip-example__expansion {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.snip-example__say > .qicon { flex: none; }
+.snip-example__trigger { color: var(--pink-on); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.snip-example__expansion { color: var(--pink); overflow: hidden; text-overflow: ellipsis; }
+
+/* Row 2 (Ju9Qi): row, gap $bento-gap, height fill */
+.snip__row2 { display: flex; gap: var(--bento-gap); flex: 1 1 0; min-height: 0; }
+
+/* Tile / All snippets (geJdS): vertical, gap 8, padding 16 14 14 14, $surface, radius-lg */
+.snip__all {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 14px 14px 14px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  color: var(--fg);
+}
+/* Top (f9oTdW): padding-left 6, space-between, center */
+.snip__all-top { display: flex; justify-content: space-between; align-items: center; padding: 0 0 0 6px; flex: none; }
+/* Title (M06SwP): gap 8, center; Label mono 11/500 ls 1.4 $fg-2 */
+.snip__all-title { display: flex; align-items: center; gap: 8px; }
+.snip__all-label {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--fg-2);
+}
+/* Search (oc2iK, Search xWpB8): 240×34, gap 10, padding 0 14, $surface-2, 1px $line, radius-sm */
+.snip__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 240px;
+  height: 34px;
+  padding: 0 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: text;
+}
+.snip__search:focus-within { box-shadow: inset 0 0 0 1px var(--line-strong); }
+.snip__search-icon { flex: none; color: var(--fg-3); }
+.snip__search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 400;
+}
+.snip__search input::placeholder { color: var(--fg-3); }
+
+/* List (fNgL8): vertical, fill; scrolls inside the tile */
+.snip__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* List item: the clip for the row's real height on insert and delete. */
+.snip__item { flex: none; overflow: hidden; }
+/* Snippet row (wmSBO hover / nUEJa rest): h44, gap 12, padding 0 6, center,
+   radius-xs, bottom 1px $line; hover: $surface-2 fill, no line, actions shown */
+.snip__row {
+  position: relative;
+  isolation: isolate;                  /* keeps the update highlight under the text */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  box-shadow: inset 0 -1px 0 var(--line);
+  cursor: pointer;
+  /* Hover (§4.13): 60 ms in, 160 ms out */
+  transition: background-color var(--dur-hover-out) var(--ease-out), box-shadow var(--dur-hover-out) var(--ease-out);
+}
+.snip__row:hover, .snip__row:focus-within { background: var(--surface-2); box-shadow: inset 0 -1px 0 transparent; }
+.snip__row:hover { transition-duration: var(--dur-hover-in); }
+.snip__row:focus-within { transition: none; }
+/* Update highlight: $violet-soft over the row, behind its content */
+.snip__flash { position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--violet-soft); pointer-events: none; }
+/* Trigger Col: width 150; Trigger: padding 4 10, $violet-soft, pill; mono 12/500 $fg */
+.snip__trigger-col { display: flex; flex: 0 0 150px; width: 150px; min-width: 0; }
+.snip__trigger {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 10px;
+  background: var(--violet-soft);
+  border-radius: var(--radius-pill);
+}
+.snip__trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--fg);
+}
+.snip__arrow { flex: none; color: var(--fg-3); }
+/* Expansion: fill, body 13 $fg */
+.snip__expansion {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg);
+}
+/* Uses: width 32, mono 11 $fg-3 */
+.snip__uses {
+  flex: 0 0 32px;
+  width: 32px;
+  text-align: right;
+  font-family: var(--font-mono-new);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg-3);
+}
+/* Actions: 88×28, gap 2, justify end, center; three 28 icon buttons */
+.snip__actions {
+  display: flex;
+  flex: 0 0 88px;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  width: 88px;
+  height: 28px;
+  /* Reveal (§4.8): dur.micro in, dur.flash out, instant on focus. Opacity, not
+     visibility, so the buttons stay reachable from the keyboard. */
+  opacity: 0;
+  transition: opacity var(--dur-flash) var(--ease-out);
+}
+.snip__row:hover .snip__actions { opacity: 1; transition-duration: var(--dur-micro); }
+.snip__row:focus-within .snip__actions { opacity: 1; transition: none; }
+.q-iconbtn.snip__act { width: 28px; height: 28px; color: var(--fg); }
+.q-iconbtn.snip__act--danger { color: var(--error); }
+.snip__empty {
+  padding: 14px 6px;
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  color: var(--fg-3);
+}
+
+/* Tile / How it works (gsCnr): Tile / Cyan, width 260, height fill */
+.snip__how { flex: 0 0 260px; width: 260px; }
+/* Bottom: vertical, gap 10 */
+.snip__how-bottom { display: flex; flex-direction: column; gap: 10px; }
+/* Demo: vertical, gap 6, padding-bottom 10 */
+.snip__demo { display: flex; flex-direction: column; gap: 6px; padding: 0 0 10px 0; }
+/* Spoken / Pasted: vertical, gap 3, padding 10 12, radius-sm */
+.snip__spoken, .snip__pasted {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+}
+.snip__spoken { background: var(--scrim-dark); color: var(--cyan-on); }
+.snip__pasted { background: var(--cyan-on); color: var(--cyan); }
+/* Label: mono 10/500 ls 1.2; Text: body 13/500 */
+.snip__demo-label {
+  font-family: var(--font-mono-new);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  line-height: normal;
+}
+.snip__demo-text { font-family: var(--font-body); font-size: var(--type-body-sm); font-weight: 500; line-height: normal; }
+/* Body: display 18/700, line-height 1.15, ls -0.3 */
+.snip__how-body {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+  color: var(--cyan-on);
+}
+/* Caption: body 13, line-height 1.35, opacity .75 */
+.snip__how-caption {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--type-body-sm);
+  font-weight: 400;
+  line-height: 1.35;
+  opacity: 0.75;
+  color: var(--cyan-on);
+}

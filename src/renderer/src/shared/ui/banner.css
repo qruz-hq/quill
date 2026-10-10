@@ -1,0 +1,50 @@
+/* Banner: Atoms "Banner / Permission" (TyR7q) and its two hub instances:
+   "Banner / Mic missing" (error) and "Banner / Accessibility off" (neutral).
+   Owner: shared/ui. */
+.q-banner {
+  --banner-bg: var(--tangerine-soft);
+  --banner-stroke: var(--tangerine);
+  --banner-chip: var(--tangerine);
+  --banner-chip-ink: var(--tangerine-on);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--banner-bg);
+  box-shadow: inset 0 0 0 1px var(--banner-stroke);  /* stroke 1 inner */
+}
+.q-banner--error {
+  --banner-bg: var(--error-soft);
+  --banner-stroke: var(--error);
+  --banner-chip: var(--error);
+  --banner-chip-ink: var(--fg-inverse);
+}
+.q-banner--neutral {
+  --banner-bg: var(--surface);
+  --banner-stroke: var(--line-strong);
+  --banner-chip: var(--tangerine-soft);
+  --banner-chip-ink: var(--tangerine);
+}
+/* "Icon Chip": 30, round, centered */
+.q-banner__chip {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  background: var(--banner-chip);
+  color: var(--banner-chip-ink);
+}
+/* "Message": fill width, 13 normal, $fg */
+.q-banner__msg {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg);
+}

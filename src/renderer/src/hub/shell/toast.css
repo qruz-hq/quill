@@ -1,0 +1,39 @@
+/* Hub toast: "Toast" (pBsOO) in the Atoms sheet. Owner: hub/shell. */
+
+/* Bottom centre of the hub: a zero-size anchor the toasts hang above, so the
+   outgoing and incoming toast overlap in place during a replace. */
+.toast-layer {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 200;                        /* Z.toast */
+  -webkit-app-region: no-drag;
+}
+
+/* width 300, $fg (toast-bg), radius-md, shadow 0 10 30 #00000038,
+   gap 9, padding 12 15, alignItems center */
+.toast {
+  position: absolute;
+  bottom: 0;
+  left: -150px;                        /* half of width 300 */
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 300px;
+  padding: 12px 15px;
+  border-radius: var(--radius-md);
+  background: var(--toast-bg);
+  box-shadow: 0 10px 30px #00000038;
+}
+/* icon/check/16/active, fill $success */
+.toast__icon { color: var(--success); }
+/* "Message": fill width, 13 / 400, lineHeight 1.4, $fg-inverse. Long copy wraps. */
+.toast__msg {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--toast-fg);
+}

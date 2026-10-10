@@ -1,0 +1,137 @@
+/*
+ * Quill motion tokens as CSS custom properties (docs/MOTION.md §2), for
+ * CSS-only transitions such as hover colour, plus the blur-word anatomy and the
+ * Reduce Motion backstop (§5 enforcement 4). Values mirror tokens.ts.
+ * Imported once by MotionProvider.tsx.
+ */
+:root {
+  --dur-instant: 0ms;
+  --dur-hover-in: 60ms;
+  --dur-flash: 80ms;
+  --dur-micro: 100ms;
+  --dur-tooltip: 125ms;
+  --dur-fast: 150ms;
+  --dur-hover-out: 160ms;
+  --dur-base: 200ms;
+  --dur-moderate: 250ms;
+  --dur-reveal: 300ms;
+  --dur-expressive: 400ms;
+  --dur-signature: 600ms;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --ease-linear: linear;
+
+  --dist-xs: 2px;
+  --dist-sm: 4px;
+  --dist-nudge: 6px;
+  --dist-md: 8px;
+  --dist-tile: 12px;
+  --dist-lg: 16px;
+  --dist-xl: 24px;
+
+  --blur-xs: 2px;
+  --blur-label: 3px;
+  --blur-sm: 4px;
+  --blur-md: 6px;
+  --blur-lg: 8px;
+  --blur-max: 10px;
+
+  --stream-unconfirmed: color-mix(in srgb, var(--fg, currentColor) 60%, transparent);
+}
+
+/* ---- Hover recipe (§4.13): crisp arrival, soft release. Opt-in class. ---- */
+.m-hover {
+  transition-property: background-color, color, border-color;
+  transition-duration: var(--dur-hover-out);
+  transition-timing-function: var(--ease-out);
+}
+.m-hover:hover {
+  transition-duration: var(--dur-hover-in);
+}
+/* Focus rings never animate. */
+.m-hover:focus-visible { transition: none; }
+
+/* ---- Blur words (§3.1) ---- */
+.bw-root { position: relative; }
+.bw { display: inline; }
+.bw-layer { display: inline; }
+.bw-layer[data-exiting] {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bw-tok { display: inline; }
+.bw-word {
+  display: inline-block;
+  white-space: pre;
+}
+/* Unit variants animate the whole copy as one box. */
+.bw-unit {
+  display: inline-block;
+  max-width: 100%;
+}
+.bw-unconf { color: var(--stream-unconfirmed); }
+.bw-word, .bw-unit { transition: color var(--dur-fast) var(--ease-out); }
+
+.m-sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  user-select: none;
+}
+
+/* ---- Stream viewport (§3.3 Overflow and wrapping) ---- */
+.bw-viewport {
+  overflow: hidden;
+  padding: 4px; /* blur halos are not clipped */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+}
+
+/* ---- Numbers (§3.4) ---- */
+.bn {
+  display: inline-block;
+  position: relative;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.bn-glyphs { display: inline-flex; }
+.bn-slot {
+  position: relative;
+  display: inline-block;
+}
+.bn-glyph { display: inline-block; }
+.bn-glyph[data-exiting] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+/* ---- Reduce Motion backstop (§5 enforcement 4) ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation: none !important;
+  transition: none !important;
+}

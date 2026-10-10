@@ -1,287 +1,508 @@
-/* Todos — the left-edge window. Same shell as the Scratchpad: sand body,
-   white cards, 14px radius. Sizes follow the design file 1:1. */
+/* Todos, the left-edge window. Translated 1:1 from design.pen
+   ("Todos - List" c9q6y and its six sibling frames). Pencil strokes don't
+   take layout space, so every stroke here is an inset box-shadow.
+   Text without a lineHeight in the design uses `normal` (Geist's own
+   metrics, which is what Pencil measures).
+   Motion (docs/MOTION.md §4.12, §4.13): hover colour is 60 ms in / 160 ms
+   out, state colour is dur.fast ease.standard, focus rings never animate.
+   Anything that moves is driven from the .tsx files with the shared tokens. */
 
 html, body, #root { height: 100%; margin: 0; background: transparent; }
-.todos-body { overflow: hidden; }
+.todos-body { overflow: hidden; font-family: var(--font-body); }
+.todos button, .picker button { font-family: inherit; }
 
+/* Hover recipe (§4.13): crisp arrival, soft release. */
+.todos__icon, .composer, .date-chip, .add-date, .check, .project-head, .done-head__label, .done-head__clear,
+.picker__q, .picker__t, .picker__nav, .picker__day {
+  transition-property: background-color, color, box-shadow;
+  transition-duration: var(--dur-hover-out);
+  transition-timing-function: var(--ease-out);
+}
+.todos__icon:hover, .composer:hover, .date-chip:hover, .add-date:hover, .check:hover, .project-head:hover,
+.done-head__left:hover .done-head__label, .done-head__clear:hover,
+.picker__q:hover, .picker__t:hover, .picker__nav:hover, .picker__day:hover {
+  transition-duration: var(--dur-hover-in);
+}
+
+/* ---- window: layout vertical, 360×520, fill $bg, stroke 1 $line, radius 16,
+   shadow 0 20 50 #00000080, clip ---- */
 .todos {
   height: 100vh;
   display: flex; flex-direction: column;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
-  background: var(--sand-200);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line), 0 20px 50px #00000080;
+  color: var(--fg);
 }
 
-/* ---- title bar ---- */
+/* ---- Title Bar bxLDk: row, center, gap 10, padding 0 10 0 12, h48 ---- */
 .todos__bar {
-  display: flex; align-items: center; gap: 8px;
-  height: 40px; flex: 0 0 40px;
+  display: flex; align-items: center; gap: 10px;
+  height: 48px; flex: none;
   padding: 0 10px 0 12px;
   -webkit-app-region: drag;
 }
 .todos__bar button { -webkit-app-region: no-drag; }
-.todos__mark { color: var(--text-primary); flex: 0 0 auto; }
+/* Mark n5cET: 24, $lime, radius-xs, icon checklist/16/active $lime-on */
+.todos__mark {
+  display: flex; justify-content: center; align-items: center;
+  width: 24px; height: 24px; flex: none;
+  border-radius: var(--radius-xs);
+  background: var(--lime); color: var(--lime-on);
+}
+/* Title fyvFX: row, center, gap 8, fill */
 .todos__title {
   flex: 1; min-width: 0;
-  display: flex; align-items: center; gap: 7px;
-  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  display: flex; align-items: center; gap: 8px;
 }
-.todos__count {
-  padding: 3px 9px; border-radius: 9999px;
-  background: var(--sand-600);
-  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+.todos__label {
+  font-family: var(--font-display); font-size: 16px; font-weight: 600; line-height: normal;
+  color: var(--fg);
 }
+/* Count vaSxH: the Badge tone="lime" primitive; this slot only pops it in and out. */
+.todos__count { display: inline-flex; flex: none; }
+/* Icon h2ytj / dmXbd: 28, pill, icon 16 $fg-2 */
 .todos__icon {
-  width: 26px; height: 26px; flex: 0 0 26px;
-  display: grid; place-items: center;
-  border: 0; border-radius: 7px;
-  background: transparent; color: var(--text-secondary);
+  display: flex; justify-content: center; align-items: center;
+  width: 28px; height: 28px; flex: none; padding: 0;
+  border: 0; border-radius: var(--radius-pill);
+  background: transparent; color: var(--fg-2);
   cursor: pointer;
 }
-.todos__icon:hover { background: rgba(0, 0, 0, 0.06); color: var(--text-primary); }
-.todos__icon.is-on { background: var(--sand-600); color: var(--text-primary); }
-.todos__icon svg { width: 14px; height: 14px; }
+/* House states: the design has none. */
+.todos__icon:hover { background: var(--scrim-dark); color: var(--fg); }
+.todos__icon.is-on { background: var(--surface-3); color: var(--fg); }
+/* Pinned is a state, not a hover: dur.fast ease.standard. */
+.todos__icon.is-on, .picker__q.is-on, .picker__t.is-on {
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-standard);
+}
+.todos__pin, .chev { display: flex; flex: none; }
 
-/* ---- body ---- */
+/* ---- Body VAVgk: column, gap 8, padding 4 12 12 12, fill ---- */
 .todos__body {
   flex: 1; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 8px;
-  padding: 4px 12px 12px;
+  padding: 4px 12px 12px 12px;
 }
+.todos__body > * { flex: none; }
+/* Everything under the composer. It carries Body's gap for its own children
+   so a bulk refresh can swap the whole list in one piece; groups and sections
+   carry it again for theirs. */
+.todos__body > .todos__list { flex: 1 0 auto; }
+.todos__list, .group, .section { display: flex; flex-direction: column; gap: 8px; }
+.todos__list > * { flex: none; }
+/* A row's slot: owns its height, its place in the list and the drag. */
+.row { position: relative; }
 
-/* ---- composer ---- */
+/* ---- Composer tgTwL (closed): row, center, gap 10, padding 0 12 0 10, h44,
+   $surface, stroke 1 $line, radius-sm ---- */
+/* .composer is the surface (fill, stroke, radius); its real height follows
+   whichever content it holds, so closed and open are one object. */
 .composer {
+  position: relative;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.composer__closed {
   display: flex; align-items: center; gap: 10px;
-  height: 40px; flex: 0 0 40px; padding: 0 14px;
-  border: 0; border-radius: 10px;
-  background: var(--sand-100);
-  font: inherit; font-size: 13.5px; color: var(--text-tertiary);
+  width: 100%; height: 44px; padding: 0 12px 0 10px;
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: inherit;
   text-align: left; cursor: text;
 }
-.composer:hover { background: var(--sand-300); }
-.composer svg { width: 15px; height: 15px; flex: 0 0 15px; }
+.composer__closed:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.composer:not(.composer--open):hover { background: var(--surface-2); }
+/* Plus Tile: 24, $lime, pill, plus/16 $lime-on */
+.composer__plus {
+  display: flex; justify-content: center; align-items: center;
+  width: 24px; height: 24px; flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--lime); color: var(--lime-on);
+}
+.composer__placeholder { font-size: 13.5px; font-weight: 400; line-height: normal; color: var(--fg-2); }
+.composer__spacer { flex: 1; height: 1px; }
+.composer__hint { font-family: var(--font-mono-new); font-size: 10.5px; font-weight: 400; line-height: normal; color: var(--fg-3); }
 
-.composer--open {
-  position: relative;
-  display: flex; flex-direction: column; gap: 10px;
+/* Composer Wrap INZvi: column. The autocomplete hangs off it. */
+.composer-wrap { position: relative; display: flex; flex-direction: column; }
+
+/* Composer / Open kXyn7 (eeRhw): column, gap 10, padding 12 14, $surface,
+   stroke 1.5 $lime, radius-sm */
+.composer--open { box-shadow: inset 0 0 0 1.5px var(--lime); }
+.composer__form {
+  display: flex; flex-direction: column; align-items: stretch; gap: 10px;
   padding: 12px 14px;
-  border: 1px solid var(--focus); border-radius: 12px;
-  background: var(--bg-content);
 }
-.composer__title, .composer__desc {
-  width: 100%; border: 0; padding: 0;
-  background: transparent; outline: none; resize: none;
-  font: inherit; color: var(--text-primary);
+.composer__title { position: relative; }
+.composer__input, .composer__mirror {
+  display: block; width: 100%; box-sizing: border-box;
+  margin: 0; padding: 0; border: 0;
+  font-family: var(--font-body); font-size: 14px; font-weight: 550; line-height: normal;
+  letter-spacing: normal;
+  white-space: pre;
 }
-.composer__title { font-size: 14px; font-weight: 550; line-height: 1.35; }
-.composer__desc { font-size: 12.5px; line-height: 1.45; }
-.composer__title::placeholder, .composer__desc::placeholder { color: var(--text-tertiary); }
-.composer__foot {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding-top: 4px;
-}
-.composer__foot .btns { display: flex; gap: 8px; }
-
-/* ---- date chip (also the composer's date picker) ---- */
-.chip {
+/* The input's own text is transparent; the mirror below it draws Prefix ($fg-3) + Task ($fg). */
+.composer__input {
   position: relative;
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px; border: 0; border-radius: 9999px;
-  background: var(--sand-600);
-  font: inherit; font-size: 11px; font-weight: 600; color: var(--text-secondary);
-  white-space: nowrap; cursor: default;
+  background: transparent; outline: none;
+  color: transparent; caret-color: var(--fg);
 }
-.chip svg { width: 11px; height: 11px; }
-.chip--overdue { background: #fdf1f1; color: var(--destructive-700); }
-.chip--pick { cursor: pointer; }
-.chip--pick:hover { background: var(--sand-700); color: var(--text-primary); }
-.chip--overdue.chip--pick:hover { background: #f8dede; }
-.chip--empty { background: transparent; border: 1px solid var(--vast-200); color: var(--text-tertiary); padding: 2px 7px; }
-.chip--empty:hover { background: var(--sand-100); }
-/* On an item the "+ date" affordance only appears on hover, so the list stays quiet. */
-.chip--hover { opacity: 0; }
-.item:hover .chip--hover { opacity: 1; }
-/* A dot means the todo is on the calendar. */
-.chip__dot { width: 5px; height: 5px; margin-left: 2px; border-radius: 50%; background: var(--fathom-700); }
+.composer__input::placeholder { color: var(--fg-3); font-weight: 550; }
+.composer__input::selection { background: var(--violet-soft); color: transparent; }
+.composer__mirror {
+  position: absolute; inset: 0;
+  overflow: hidden; pointer-events: none;
+  color: var(--fg);
+}
+/* inline-block so the accepted @Project token can pop (a transform needs a box). */
+.composer__prefix { display: inline-block; white-space: pre; transform-origin: left center; color: var(--fg-3); }
+/* Description: 12.5/400, placeholder $fg-3 */
+.composer__desc {
+  display: block; width: 100%; box-sizing: border-box;
+  margin: 0; padding: 0; border: 0;
+  background: transparent; outline: none; resize: none;
+  field-sizing: content;
+  font-family: var(--font-body); font-size: 12.5px; font-weight: 400; line-height: normal;
+  color: var(--fg);
+}
+.composer__desc::placeholder { color: var(--fg-3); }
+/* Footer yfG07: row, space-between, center, padding 4 0 0 0 */
+.composer__footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0 0 0;
+}
+/* Buttons H6VTiI: row, gap 8 */
+.composer__buttons { display: flex; gap: 8px; }
+/* Add cMgNf: Button variant="lime". */
 
-/* ---- item ---- */
+/* ---- Project Autocomplete bATMI: column, padding 5, w240, $surface-2,
+   stroke 1 $line-strong, radius-md, shadow 0 14 36 #00000066.
+   Absolute at Body (26,48) = Composer Wrap (14,44). ---- */
+.ac {
+  position: absolute; left: 14px; top: 44px; z-index: 5;
+  display: flex; flex-direction: column;
+  width: 240px; padding: 5px; box-sizing: border-box;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong), 0 14px 36px #00000066;
+  transform-origin: top left;
+}
+/* Option: row, space-between, center, gap 9, padding 0 9, h32, radius-xs */
+.ac__row {
+  display: flex; justify-content: space-between; align-items: center; gap: 9px;
+  width: 100%; height: 32px; padding: 0 9px; box-sizing: border-box;
+  border: 0; border-radius: var(--radius-xs);
+  background: transparent; color: var(--fg);
+  text-align: left; cursor: pointer;
+}
+.ac__row.is-hi { background: var(--violet-soft); }
+/* Left: row, center, gap 9; Icon folder/16 $fg-2 */
+.ac__left { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.ac__left > .qicon { color: var(--fg-2); }
+.ac__name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13.5px; font-weight: 400; line-height: normal; color: var(--fg);
+}
+/* Match: 600, $fg; on the highlighted row $violet-fg */
+.ac__match { font-weight: 600; color: var(--fg); }
+.ac__row.is-hi .ac__match { color: var(--violet-fg); }
+.ac__count { font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3); }
+/* Sep: 1px $line, fill width */
+.ac__sep { height: 1px; flex: none; background: var(--line); }
+/* Create r2Qy2D: row, center, gap 9, padding 0 9, h32, radius 7; plus $fg-2, label 13.5 $fg-2 */
+.ac__row--create { justify-content: flex-start; border-radius: 7px; color: var(--fg-2); }
+.ac__label { font-size: 13.5px; font-weight: 400; line-height: normal; color: var(--fg-2); }
+
+/* ---- Date Chip jzFJa: row, center, gap 4, padding 3 8, $surface-3, pill;
+   calendar/16 + 11/600, both $fg-2 ---- */
+.date-chip, .add-date {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  border: 0; border-radius: 9999px;
+  background: var(--surface-3); color: var(--fg-2);
+  white-space: nowrap; cursor: pointer;
+}
+.date-chip__label { font-size: 11px; font-weight: 600; line-height: normal; }
+/* Overdue v0V55: $error-soft, $error. The tint is a status change: dur.base ease.standard. */
+.date-chip { transition-duration: var(--dur-base); transition-timing-function: var(--ease-standard); }
+.date-chip--overdue { background: var(--error-soft); color: var(--error); }
+/* Synced PjMQZ: Dot 5, $violet */
+.date-chip__dot { width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--violet); }
+/* Add Date e0cLHk: no fill, stroke 1 $line, plus/16 + "date", both $fg-3 */
+.add-date {
+  background: transparent; color: var(--fg-3);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+/* House hover: the design has none. */
+.date-chip:hover { background-image: linear-gradient(var(--scrim-light), var(--scrim-light)); }
+.add-date:hover { background: var(--surface-2); color: var(--fg-2); }
+
+/* ---- Todo Item h0n3gl: row, gap 10, padding 12 14 12 8, $surface,
+   stroke 1 $line, radius-sm ---- */
 .item {
   position: relative;
   display: flex; align-items: flex-start; gap: 10px;
   padding: 12px 14px 12px 8px;
-  border: 1px solid var(--border-subtle); border-radius: 12px;
-  background: var(--bg-content);
-  transition: opacity var(--spring-duration) ease, transform var(--spring-duration) ease;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  user-select: none;
 }
-.item.is-done { opacity: 0.6; }
-.item.is-dragging { opacity: 0.35; }
-.item.is-over { box-shadow: 0 -2px 0 0 var(--focus); }
+/* Picked up: the lift shadow is a layer whose opacity moves (never the
+   box-shadow itself), in over dur.fast and back over dur.base. */
+.item::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 16px 40px #00000066;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.item.is-dragging::after { opacity: 1; transition-duration: var(--dur-fast); }
 
-.item__grip {
-  flex: 0 0 14px; width: 14px; height: 14px; margin-top: 2px;
-  color: var(--vast-300); cursor: grab;
-}
+/* Grip: 16, $fg-3 */
+.item__grip { display: flex; flex: none; width: 16px; height: 16px; color: var(--fg-3); cursor: grab; }
 .item__grip:active { cursor: grabbing; }
+.is-done .item__grip { cursor: default; }
 
+/* Check Wrap: padding 1 0 0 0; Checkbox KjdJY: 18, round, stroke 1.5 $line-strong */
+.item__checkwrap { display: flex; flex: none; padding: 1px 0 0 0; }
 .check {
-  flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px;
-  display: grid; place-items: center;
-  border: 1.5px solid var(--vast-200); border-radius: 50%;
-  background: transparent; cursor: pointer; padding: 0;
-  transition: background var(--spring-duration) ease, border-color var(--spring-duration) ease;
+  display: flex; justify-content: center; align-items: center;
+  width: 18px; height: 18px; flex: none; padding: 0;
+  border: 0; border-radius: 9999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  color: var(--lime-on);
+  cursor: pointer;
 }
-.check:hover { border-color: var(--vast-300); }
-.check.is-on { background: #1c1c1a; border-color: #1c1c1a; }
-.check svg { width: 11px; height: 11px; color: #fff; }
+.check { position: relative; }
+.check:hover { box-shadow: inset 0 0 0 1.5px var(--fg-3); }
+/* Checkbox / Done BDqkL: $lime fill, check/16/active $lime-on. The fill is
+   its own layer so it can pop in over the empty ring. */
+.check__fill {
+  position: absolute; inset: 0;
+  display: flex; justify-content: center; align-items: center;
+  border-radius: 9999px;
+  background: var(--lime);
+}
 
-.item__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.item__title { font-size: 14px; font-weight: 550; line-height: 1.35; color: var(--text-primary); word-wrap: break-word; }
-.is-done .item__title { text-decoration: line-through; color: var(--text-tertiary); }
-.item__prefix { color: var(--text-tertiary); }
-.item__desc { font-size: 12.5px; line-height: 1.45; color: var(--text-secondary); white-space: pre-wrap; }
-.item__meta { display: flex; align-items: center; gap: 6px; padding-top: 4px; }
+/* Text: column, gap 3, fill */
+/* The gap rides on Description and Meta as a top margin, so a part that is
+   closed or hidden takes its gap with it. */
+.item__text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* Title: 14/550, line-height 1.35, $fg */
+.item__title {
+  font-size: 14px; font-weight: 550; line-height: 1.35;
+  color: var(--fg); overflow-wrap: anywhere;
+  transition: color var(--dur-base) var(--ease-out);
+}
+/* Checked, during the hold: a line draws through the title from the left and
+   retracts to the right when it is undone. Inline, so it follows every line. */
+.item__ink {
+  background: linear-gradient(currentColor, currentColor) no-repeat right 58% / 0% 1px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  transition: background-size var(--dur-fast) var(--ease-exit);
+}
+.is-held .item__ink {
+  background-position: left 58%; background-size: 100% 1px;
+  transition: background-size var(--dur-base) var(--ease-out);
+}
+/* Project title Os6ko: row; Prefix $violet-fg hugs, Task fills. A long
+   project name must never crush the task: once the task would get less than
+   8em it takes the next line, and a prefix wider than the row wraps too. */
+.item__title--split { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.item__prefix { flex: 0 1 auto; min-width: 0; white-space: pre-wrap; color: var(--violet-fg); transition: color var(--dur-base) var(--ease-out); }
+.item__task { flex: 1 1 8em; min-width: 0; }
+/* Done: title $fg-3 */
+.is-done .item__title, .is-done .item__prefix { color: var(--fg-3); }
+/* Description: 12.5/400, line-height 1.45, $fg-2 */
+.item__desc { margin-top: 3px; font-size: 12.5px; font-weight: 400; line-height: 1.45; color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Meta: row, center, gap 6, padding 4 0 0 0 */
+.item__meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; padding: 4px 0 0 0; }
+/* An undated item has no Meta (it is a hidden layer in the design); "+ date"
+   only appears while the item is hovered or its picker is open: opacity
+   hover-in on the way in, hover-out on the way out. */
+.item.is-undated .item__meta {
+  transition: opacity var(--dur-hover-in) var(--ease-out), display var(--dur-hover-in) allow-discrete;
+}
+.item.is-undated:not(:hover):not(.is-picking) .item__meta {
+  display: none; opacity: 0;
+  transition: opacity var(--dur-hover-out) var(--ease-out), display var(--dur-hover-out) allow-discrete;
+}
+@starting-style { .item.is-undated .item__meta { opacity: 0; } }
 
+/* Delete: not in the design; a house hover affordance. */
 .item__del {
   position: absolute; top: 8px; right: 8px;
-  display: none; width: 22px; height: 22px;
-  border: 0; border-radius: 6px;
-  background: var(--sand-100); color: var(--destructive-700);
+  display: flex; justify-content: center; align-items: center;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--surface-3); color: var(--fg-3);
   cursor: pointer;
+  /* Row action reveal (§4.13): micro in, flash out, instant for the keyboard. */
+  opacity: 0; visibility: hidden;
+  transition: opacity var(--dur-flash) var(--ease-out), visibility 0s var(--dur-flash),
+    color var(--dur-hover-out) var(--ease-out);
 }
-.item__del svg { width: 13px; height: 13px; }
-.item:hover .item__del { display: grid; place-items: center; }
+.item__del:hover { color: var(--error); }
+.item:hover .item__del {
+  opacity: 1; visibility: visible;
+  transition: opacity var(--dur-micro) var(--ease-out), visibility 0s, color var(--dur-hover-in) var(--ease-out);
+}
+.item:has(:focus-visible) .item__del { opacity: 1; visibility: visible; transition: none; }
+.item.is-dragging .item__del { opacity: 0; visibility: hidden; }
 
-/* ---- completed ---- */
-.done-head {
-  display: flex; align-items: center; justify-content: space-between;
-  height: 32px; padding: 0 6px;
-}
-.done-head__toggle {
-  display: flex; align-items: center; gap: 6px;
-  border: 0; background: transparent; padding: 0;
-  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
-  cursor: pointer;
-}
-.done-head__toggle svg { width: 14px; height: 14px; color: var(--text-tertiary); }
-.done-head__clear {
-  border: 0; background: transparent; padding: 4px 6px; border-radius: 6px;
-  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
-  cursor: pointer;
-}
-.done-head__clear:hover { background: var(--sand-600); color: var(--text-primary); }
-
-/* ---- empty ---- */
-.empty {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; padding: 0 24px 40px;
-  text-align: center; color: var(--text-tertiary);
-}
-.empty svg { width: 22px; height: 22px; }
-.empty p { margin: 0; font-size: 13.5px; line-height: 1.45; }
-
-/* ---- buttons (same as hub.css) ---- */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  height: 34px; padding: 0 15px;
-  border: 1px solid transparent; border-radius: 9px;
-  font: inherit; font-size: 13px; font-weight: 600;
-  white-space: nowrap; cursor: pointer;
-}
-.btn--dark { background: #1c1c1a; color: #fff; }
-.btn--dark:hover:not(:disabled) { background: #34342f; }
-.btn--ghost { background: var(--sand-500); border-color: var(--border-subtle); color: var(--text-primary); }
-.btn--ghost:hover:not(:disabled) { background: var(--sand-600); }
-.btn:disabled { opacity: 0.45; cursor: default; }
-
-/* ---- project groups ---- */
-.project { display: flex; flex-direction: column; gap: 8px; }
-.project__head {
+/* ---- Project Header k6c3zW: row, center, gap 6, padding 0 6, h30;
+   chevron/16 $fg-3; Name 12.5/600 $fg; Count 12.5/600 $fg-3 ---- */
+.project-head {
   display: flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 6px;
-  border: 0; background: transparent;
-  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-primary);
-  text-align: left; cursor: pointer; border-radius: 7px;
+  border: 0; border-radius: var(--radius-xs);
+  background: transparent; text-align: left; cursor: pointer;
 }
-.project__head:hover { background: rgba(0, 0, 0, 0.035); }
-.project__head svg { width: 14px; height: 14px; color: var(--text-tertiary); transition: transform var(--spring-duration) ease; }
-.project__count { color: var(--text-tertiary); }
+.project-head .qicon { color: var(--fg-3); }
+.project-head__name, .project-head__count { font-size: 12.5px; font-weight: 600; line-height: normal; }
+.project-head__name { color: var(--fg); }
+.project-head__count { color: var(--fg-3); }
+.project-head:hover { background: var(--scrim-dark); }
 
-/* ---- project autocomplete ---- */
-.ac {
-  position: absolute; left: 14px; top: 44px; z-index: 5;
-  display: flex; flex-direction: column;
-  width: 240px; padding: 5px;
-  border: 1px solid var(--border-subtle); border-radius: var(--dialog-border-radius);
-  background: var(--bg-content);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+/* ---- Completed Header Murv0: row, space-between, center, padding 0 6, h32 ---- */
+.done-head {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 32px; padding: 0 6px;
 }
-.ac__row {
-  display: flex; align-items: center; gap: 9px;
-  width: 100%; height: 32px; padding: 0 9px;
-  border: 0; border-radius: 7px;
-  background: transparent; color: var(--text-primary);
-  font: inherit; font-size: 13.5px; text-align: left; cursor: pointer;
+/* Left: row, center, gap 6; chevron/16 $fg-3; Label 12.5/600 $fg-2 */
+.done-head__left {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0; border: 0; background: transparent; cursor: pointer;
 }
-.ac__row.is-hi { background: var(--sand-300); }
-.ac__row svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--text-secondary); }
-.ac__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ac__name b { font-weight: 600; }
-.ac__count { font-size: 12px; color: var(--text-tertiary); }
-.ac__row--create { color: var(--text-secondary); }
-.ac__sep { height: 1px; margin: 3px 0; background: var(--border-subtle); }
+.done-head__left .qicon { color: var(--fg-3); }
+.done-head__label, .done-head__clear { font-size: 12.5px; font-weight: 600; line-height: normal; color: var(--fg-2); }
+.done-head__clear { padding: 0; border: 0; background: transparent; cursor: pointer; }
+.done-head__left:hover .done-head__label, .done-head__clear:hover { color: var(--fg); }
 
-/* ---- date picker ---- */
+/* ---- Empty mhZ3s: column, center/center, gap 12, padding 0 24 40 24, fill ---- */
+.todos__list > .empty { flex: 1; }
+.empty__glyph { display: flex; }
+.empty {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  gap: 12px; padding: 0 24px 40px 24px;
+}
+/* Icon Tile: 64, $lime, radius-md, checklist/32 $lime-on */
+.empty__tile {
+  display: flex; justify-content: center; align-items: center;
+  width: 64px; height: 64px; flex: none;
+  border-radius: var(--radius-md);
+  background: var(--lime); color: var(--lime-on);
+}
+/* Headline: display, title-2, 600, $fg */
+.empty__headline {
+  margin: 0;
+  font-family: var(--font-display); font-size: var(--type-title-2); font-weight: 600; line-height: normal;
+  color: var(--fg);
+}
+/* Text: 13.5/400, line-height 1.45, $fg-2, centred, fill width */
+.empty__text {
+  align-self: stretch; margin: 0;
+  font-size: 13.5px; font-weight: 400; line-height: 1.45;
+  text-align: center; color: var(--fg-2);
+}
+
+/* ---- Date Picker QjrFy (xOQhj): column, gap 12, padding 14, w320,
+   $surface-2, stroke 1 $line-strong, radius-md, shadow 0 16 40 #00000066 ---- */
 .picker {
   position: fixed; z-index: 10;
-  display: flex; flex-direction: column; gap: 10px;
-  width: 300px; padding: 12px;
-  border: 1px solid var(--border-subtle); border-radius: var(--dialog-border-radius);
-  background: var(--bg-content);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
-  animation: pickin 0.14s ease;
+  display: flex; flex-direction: column; gap: 12px;
+  width: 320px; padding: 14px; box-sizing: border-box;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong), 0 16px 40px #00000066;
+  color: var(--fg);
 }
-@keyframes pickin { from { opacity: 0; transform: translateY(-4px); } }
-.picker__quick { display: flex; gap: 6px; }
-.picker__q {
-  padding: 4px 8px; border: 0; border-radius: 9999px;
-  background: var(--sand-100); color: var(--text-secondary);
-  font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
-}
-.picker__q:hover { background: var(--sand-600); color: var(--text-primary); }
-.picker__q.is-on { background: #1c1c1a; color: #fff; }
-.picker__month {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 2px 0;
-  font-size: 13px; font-weight: 600; color: var(--text-primary);
-}
-.picker__nav {
-  width: 24px; height: 24px; border: 0; border-radius: 6px;
-  background: transparent; color: var(--text-secondary);
-  font: inherit; font-size: 16px; line-height: 1; cursor: pointer;
-}
-.picker__nav:hover { background: var(--sand-300); color: var(--text-primary); }
-.picker__dow, .picker__grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-.picker__dow span { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--text-tertiary); }
-.picker__grid { row-gap: 2px; }
-.picker__day {
-  height: 32px; border: 0; border-radius: 8px;
-  background: transparent; color: var(--text-primary);
-  font: inherit; font-size: 12.5px; cursor: pointer;
-}
-.picker__day:hover { background: var(--sand-300); }
-.picker__day.is-past { color: var(--text-tertiary); }
-.picker__day.is-today { box-shadow: inset 0 0 0 1px var(--vast-200); font-weight: 600; }
-.picker__day.is-sel, .picker__day.is-sel:hover { background: #1c1c1a; color: #fff; font-weight: 600; }
+.picker button { border: 0; cursor: pointer; }
 
-.picker__sep { height: 1px; background: var(--border-subtle); }
-.picker__time { display: flex; align-items: center; gap: 6px; }
-.picker__time > svg { width: 13px; height: 13px; flex: 0 0 13px; color: var(--text-tertiary); }
-.picker__timefield {
-  flex: 1; min-width: 0; padding: 4px 8px;
-  border: 1px solid var(--vast-200); border-radius: 7px;
-  background: var(--bg-content); color: var(--text-primary);
-  font-family: var(--font-mono); font-size: 11.5px; text-align: center; outline: none;
+/* Summary: row, space-between, align end, padding 2 2 0 2 */
+.picker__summary { display: flex; justify-content: space-between; align-items: flex-end; padding: 2px 2px 0 2px; }
+/* Text: column, gap 2 */
+.picker__summary-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+/* Label: mono 10, letter-spacing 1.2, $fg-3 */
+.picker__label { font-family: var(--font-mono-new); font-size: 10px; font-weight: 400; line-height: normal; letter-spacing: 1.2px; color: var(--fg-3); }
+/* Value: display, title-3, 600, $fg */
+.picker__value { font-family: var(--font-display); font-size: var(--type-title-3); font-weight: 600; line-height: normal; color: var(--fg); }
+/* Calendar: row, center, gap 6, padding 0 0 3 0; Dot 6 $violet; Label 11.5 $fg-2 */
+.picker__cal { display: flex; align-items: center; gap: 6px; padding: 0 0 3px 0; }
+.picker__dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--violet); }
+.picker__cal-label { font-size: 11.5px; font-weight: 400; line-height: normal; color: var(--fg-2); }
+
+/* Quick Picks: row, gap 6; pick: padding 5 10, $surface-3, pill, 11.5/600 $fg-2; on: $lime / $lime-on */
+.picker__quick { display: flex; gap: 6px; }
+.picker__q, .picker__t {
+  padding: 5px 10px; border-radius: 9999px;
+  background: var(--surface-3); color: var(--fg-2);
+  font-size: 11.5px; font-weight: 600; line-height: normal;
 }
-.picker__timefield:focus { border-color: var(--focus); }
-.picker__timefield::placeholder { color: var(--text-tertiary); }
+.picker__t { padding: 5px 8px; }
+.picker__q:hover, .picker__t:hover { color: var(--fg); }
+.picker__q.is-on, .picker__t.is-on { background: var(--lime); color: var(--lime-on); }
+
+/* Month Header: row, space-between, center, padding 4 2 0 2 */
+.picker__month { display: flex; justify-content: space-between; align-items: center; padding: 4px 2px 0 2px; }
+/* chevron-left/right: 28, $surface-3, pill, icon 16 $fg-2 */
+.picker__nav {
+  display: flex; justify-content: center; align-items: center;
+  width: 28px; height: 28px; flex: none; padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3); color: var(--fg-2);
+}
+.picker__nav:hover { color: var(--fg); }
+/* Month: display 15/600 $fg */
+.picker__month-label { font-family: var(--font-display); font-size: 15px; font-weight: 600; line-height: normal; color: var(--fg); }
+
+/* Weekdays: row; each fills, 10.5/600 $fg-3, centred */
+.picker__dow { display: flex; }
+.picker__dow span { flex: 1; min-width: 0; text-align: center; font-size: 10.5px; font-weight: 600; line-height: normal; color: var(--fg-3); }
+
+/* Days: column, gap 2; Week: row; day: fills, h34, pill, centred, 12.5/400 */
+.picker__days { display: flex; flex-direction: column; gap: 2px; }
+.picker__week { display: flex; }
+.picker__day {
+  position: relative;
+  flex: 1; min-width: 0; height: 34px; padding: 0;
+  display: flex; justify-content: center; align-items: center;
+  border-radius: var(--radius-pill);
+  background: transparent; color: var(--fg);
+  font-size: 12.5px; font-weight: 400; line-height: normal;
+}
+button.picker__day:hover { background: var(--surface-3); }
+.picker__day.is-past { color: var(--fg-3); }
+/* Today: stroke 1.5 $violet, $violet-fg 700 */
+.picker__day.is-today { box-shadow: inset 0 0 0 1.5px var(--violet); color: var(--violet-fg); font-weight: 700; }
+/* Selected: $lime, $lime-on 700. The fill is a text-free circle that flies
+   between days of the same month. */
+.picker__day.is-sel, .picker__day.is-sel:hover { background: transparent; color: var(--lime-on); font-weight: 700; box-shadow: none; }
+.picker__sel { position: absolute; inset: 0; border-radius: var(--radius-pill); background: var(--lime); }
+.picker__num { position: relative; }
+
+/* Sep: 1px $line */
+.picker__sep { height: 1px; flex: none; background: var(--line); }
+
+/* Time Row: row, center, gap 6; clock/16 $fg-3 */
+.picker__time { display: flex; align-items: center; gap: 6px; }
+.picker__time > .qicon { color: var(--fg-3); }
+/* Time Field: fills, padding 4 8, $surface, stroke 1 $line-strong, pill; mono 11.5 $fg */
+.picker__timefield {
+  flex: 1; min-width: 0; box-sizing: border-box;
+  padding: 4px 8px; margin: 0;
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-family: var(--font-mono-new); font-size: 11.5px; font-weight: 400; line-height: normal;
+  color: var(--fg); text-align: center; outline: none;
+}
+.picker__timefield:focus { box-shadow: inset 0 0 0 1px var(--focus); }
+.picker__timefield::placeholder { color: var(--fg-3); }

@@ -2,7 +2,7 @@ import { screen, type BrowserWindow } from 'electron'
 
 const TICK_MS = 50
 const ZONE_PX = 4
-const DWELL_MS = 200
+const DWELL_MS = 350   // HOLD.dwell (docs/MOTION.md §4.12)
 /** How long the cursor must be outside before the window closes. Stops a
  *  one-frame excursion past the border from slamming it shut. */
 const LEAVE_MS = 300
@@ -10,8 +10,12 @@ const LEAVE_MS = 300
 type Handlers = {
   open: (cursor: { x: number; y: number }) => void
   close: () => void
+  /** The cursor came back while the window was playing its exit. */
+  reenter?: () => void
   log?: (line: string) => void
 }
+
+type Rect = { x: number; y: number; width: number; height: number }
 
 /**
  * Watches for the cursor resting on the left edge of whichever display it is
@@ -24,7 +28,7 @@ type Handlers = {
  *
  * The dwell cancels the moment the cursor leaves the strip, so brushing the
  * edge on the way to the Dock or a menu does nothing. And once open, the
- * gutter between the screen edge and the window counts as inside — the
+ * gutter between the screen edge and the window counts as inside, the
  * natural motion is to slide from the edge into the list, and that path
  * must not trip the close.
  */
@@ -37,6 +41,12 @@ export class EdgeDwell {
   private window: BrowserWindow | null = null
   private pinned = false
   private enabled = true
+  /** Bounds the window just shrank from; still "inside" while the cursor rests in them. */
+  private held: Rect | null = null
+  /** The window is animating out (close handshake); coming back cancels it. */
+  private closing = false
+  /** The cursor has been outside since the exit began, so a return is a real re-entry. */
+  private reenterArmed = false
 
   constructor(private readonly on: Handlers) {}
 
@@ -59,7 +69,37 @@ export class EdgeDwell {
   attach(win: BrowserWindow | null): void {
     this.window = win
     this.outsideSince = null
+    this.held = null
+    this.closing = false
     if (!win) this.armed = false
+  }
+
+  /**
+   * The window is about to shrink (the date picker closed) and the cursor may
+   * sit in the part that disappears. Those bounds keep counting as inside
+   * until the cursor moves out of them or into the smaller window, so the
+   * shrink by itself never reads as "the cursor left".
+   */
+  holdBounds(bounds: Rect): void {
+    this.held = bounds
+    this.outsideSince = null
+  }
+
+  /**
+   * The exit began. A close from the leave check has the cursor outside
+   * already; one from the close button has it on the panel, and that must not
+   * count as coming back until it has left once.
+   */
+  beginClose(): void {
+    this.closing = true
+    this.reenterArmed = false
+    this.outsideSince = null
+  }
+
+  /** The exit was called off (or finished without closing). */
+  endClose(): void {
+    this.closing = false
+    this.outsideSince = null
   }
 
   setPinned(v: boolean): void {
@@ -71,6 +111,11 @@ export class EdgeDwell {
     return this.pinned
   }
 
+  /** Inside the window, or in the gutter between the screen edge and it. */
+  private within(b: Rect, cursor: { x: number; y: number }, left: number): boolean {
+    return cursor.x >= left && cursor.x <= b.x + b.width && cursor.y >= b.y && cursor.y <= b.y + b.height
+  }
+
   private tick(): void {
     const cursor = screen.getCursorScreenPoint()
     const display = screen.getDisplayNearestPoint(cursor)
@@ -78,15 +123,27 @@ export class EdgeDwell {
     const win = this.window && !this.window.isDestroyed() ? this.window : null
 
     if (win) {
+      if (this.closing) {
+        if (!this.within(win.getBounds(), cursor, display.bounds.x)) { this.reenterArmed = true; return }
+        if (!this.reenterArmed) return
+        this.closing = false
+        this.on.log?.(`[edge] cursor came back during the exit`)
+        this.on.reenter?.()
+        return
+      }
       if (this.pinned) return
       // Until the window has actually been shown its bounds are not reliable,
       // and judging "outside" against them would close it 300ms after opening.
       if (!win.isVisible()) { this.outsideSince = null; return }
-      const b = win.getBounds()
-      const inside =
-        cursor.x >= display.bounds.x && cursor.x <= b.x + b.width &&
-        cursor.y >= b.y && cursor.y <= b.y + b.height
-      if (inside) { this.outsideSince = null; return }
+      if (this.within(win.getBounds(), cursor, display.bounds.x)) {
+        this.held = null
+        this.outsideSince = null
+        return
+      }
+      if (this.held) {
+        if (this.within(this.held, cursor, display.bounds.x)) { this.outsideSince = null; return }
+        this.held = null
+      }
       this.outsideSince ??= Date.now()
       if (Date.now() - this.outsideSince >= LEAVE_MS) {
         this.outsideSince = null

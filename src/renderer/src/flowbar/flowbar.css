@@ -1,123 +1,491 @@
-/* Flow Bar — always-on-top window docked to the right screen edge.
-   The window itself is transparent; only the shell paints. */
+/* Flow Bar: design.pen "Flow Bar, States" (oQ6Qr), motion docs/MOTION.md §4.1.
+   One fixed 400 × 260 transparent window docked to the right screen edge. Only
+   the bar paints. Every layer is absolutely positioned in window coordinates
+   (§4.1.2); the shape morphs between states and the layers swap around it.
+   Strokes are inset box-shadows, like Pencil's inner strokes, so they never
+   change layout. Motion values come from shared/motion (tokens + motion.css). */
 
 html, body, #root { height: 100%; margin: 0; background: transparent; }
 .bar-body { overflow: hidden; user-select: none; cursor: default; }
 
-.bar {
-  height: 100%;
-  display: flex; align-items: center; justify-content: flex-end;
-  padding-right: 0;
-}
-
-/* ---- idle sliver ---- */
-.bar__sliver {
-  width: 5px; height: 62px;
-  border-radius: 4px 0 0 4px;
-  background: #1a1a1a;
-  opacity: 0.9;
-  transition: opacity var(--spring-duration) ease, width var(--spring-duration) ease;
-}
-.bar--expanded .bar__sliver, .bar--recording .bar__sliver { opacity: 0; width: 0; }
-
-/* ---- expanded shell ---- */
-.bar__shell {
-  display: flex; align-items: center; gap: 6px;
-  padding-right: 7px;
-  opacity: 0; transform: translateX(10px);
+/* The window: content anchored right-centre. Click-through everywhere except
+   the [data-hit] layers, which is also what the renderer's hit test reads. */
+.fb {
+  /* Effect colours from the nodes (#00000059 / #00000066 / #00000073). */
+  --fb-shadow-35: rgb(0 0 0 / 0.349);
+  --fb-shadow-40: rgb(0 0 0 / 0.4);
+  --fb-shadow-45: rgb(0 0 0 / 0.451);
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 400px;
+  height: 260px;
+  margin-top: -130px;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
   pointer-events: none;
-  transition: opacity var(--spring-duration) ease, transform var(--spring-duration) ease;
 }
-.bar--expanded .bar__shell, .bar--recording .bar__shell {
-  opacity: 1; transform: none; pointer-events: auto;
+.fb [data-hit] { pointer-events: auto; }
+.fb button { font: inherit; color: inherit; border: 0; margin: 0; padding: 0; background: none; cursor: pointer; }
+.fb button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- The shape. Sliver bvgSJ (6 × 64, radius 6 0 0 6), Capsule r2Yqh,
+   Recording Pill LFwYM, Busy Pill i8BpJG, Error Pill KQgc9 are one element:
+   $bar-bg with a 1 px inner $bar-line in every state. Geometry is animated
+   inline (x, y, width, height, border-radius). ---- */
+.fb-shape {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  background-color: var(--bar-bg);
+  box-shadow: inset 0 0 0 1px var(--bar-line);
+  /* Done tint (§4.1.8): the only fill change between bar states. */
+  transition: background-color var(--dur-fast) var(--ease-standard);
 }
-
-.bar__collapse {
-  display: grid; place-items: center;
-  width: 15px; height: 15px;
-  color: rgba(255, 255, 255, 0.55);
+.fb-shape--done { background-color: var(--bar-success-soft); }
+/* Hit hysteresis: 4 px around the shape; the sliver is 12 px wide to the pointer. */
+.fb-shape::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
 }
-.bar__collapse svg { width: 13px; height: 13px; }
-
-.bar__stack { display: flex; flex-direction: column; gap: 7px; }
-
-/* ---- circular buttons ---- */
-.barbtn__wrap { position: relative; display: flex; align-items: center; justify-content: flex-end; }
-
-.barbtn {
-  width: 29px; height: 29px;
-  display: grid; place-items: center;
-  border: 0; border-radius: 50%;
-  background: #1a1a1a; color: #f2f1ec;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
-  transition: background var(--spring-duration) ease, transform var(--spring-duration) ease;
+.fb-shape--sliver::before { inset: -4px 0 -4px -6px; }
+/* Drop shadow (a transparent window has none): 0 6 18, 35 % under the capsule,
+   40 % under the recording and busy pills, none for the sliver and error pill.
+   A static layer whose opacity changes, never an animated box-shadow (§2.6). */
+.fb .fb-shape__shadow,
+.fb .fb-shape__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
 }
-.barbtn svg { width: 15px; height: 15px; }
-.barbtn:hover { transform: scale(1.06); }
-.barbtn--primary { background: #3a3a38; }
-.barbtn--primary:hover { background: #4a4a47; }
+.fb-shape__shadow {
+  box-shadow: 0 6px 18px var(--fb-shadow-40);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.fb-shape--capsule .fb-shape__shadow { opacity: calc(0.349 / 0.4); }
+.fb-shape--recording .fb-shape__shadow,
+.fb-shape--busy .fb-shape__shadow,
+.fb-shape--done .fb-shape__shadow { opacity: 1; }
+/* Error Pill KQgc9: 1.5 inner $bar-error. */
+.fb-shape__ring {
+  box-shadow: inset 0 0 0 1.5px var(--bar-error);
+  transition: opacity var(--dur-fast) var(--ease-standard);
+}
+.fb-shape--error .fb-shape__ring { opacity: 1; }
 
-/* ---- tooltips (open to the left) ---- */
-.tooltip {
-  position: absolute; right: 36px; top: 50%;
-  transform: translateY(-50%) translateX(6px);
-  display: flex; align-items: center; gap: 7px;
-  height: 29px; padding: 0 15px;
+/* "Bar" padding 0 8 0 0: the 8 px to the screen edge belongs to the bar. */
+.fb-edge { position: absolute; right: 0; width: 8px; }
+
+/* ---- Bar Button FYQUc / Primary KXQWr: 32 round, at its capsule slot ---- */
+.fb .fb-btn {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
   border-radius: 9999px;
-  background: #1a1a1a; color: #f2f1ec;
-  font-size: 13.5px; font-weight: 500; white-space: nowrap;
-  opacity: 0; pointer-events: none;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  transition: opacity 0.14s ease, transform 0.14s ease;
+  background: var(--bar-raised);
+  color: var(--bar-fg-2);
 }
-.barbtn__wrap:hover .tooltip { opacity: 1; transform: translateY(-50%); }
-.tooltip__key { font-weight: 700; }
+.fb .fb-btn--primary { background: var(--violet); color: var(--violet-on); }
+.fb .fb-btn:not(.fb-btn--primary):hover { color: var(--bar-fg-fixed); }
 
-/* ---- recording pill ---- */
-.rec { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-
-
-.rec__pill {
-  display: grid; place-items: center;
-  width: 40px; padding: 12px 0;
-  border: 0; border-radius: 9999px;
-  background: #1a1a1a;
-  cursor: pointer;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.38);
+/* ---- Tooltip iIu70: h28, padding 0 6 0 12, gap 8, pill. Right edge 8 px
+   left of the bar (x 340); its y is animated inline. ---- */
+.fb .fb-tooltip {
+  position: absolute;
+  right: 60px;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 6px 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bar-bg);
+  box-shadow: inset 0 0 0 1px var(--bar-line), 0 4px 14px var(--fb-shadow-35);
+  white-space: nowrap;
+}
+.fb-tooltip__label {
+  color: var(--bar-fg-fixed);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
 }
 
-/* ---- waveform ---- */
+/* Keycap size="sm" instances (Tooltip "Key", Notice "Key"): only the bar
+   colours differ. Fill $bar-raised, stroke $bar-line (1 1 2 1), label $bar-fg-fixed. */
+.q-keycap.fb-key {
+  background: var(--bar-raised);
+  box-shadow: inset 0 -2px 0 var(--bar-line), inset 0 0 0 1px var(--bar-line);
+  color: var(--bar-fg-fixed);
+}
+
+/* ---- Recording Pill LFwYM: w44, padding 14 0, gap 10: dot, waveform, time ---- */
+/* The whole pill is the stop button. */
+.fb .fb-stop {
+  position: absolute;
+  left: 348px;
+  top: 51.5px;
+  z-index: 3;
+  width: 44px;
+  height: 157px;
+  border-radius: var(--radius-pill);
+}
+/* Rec dot: 8 round, $bar-error. Its box is animated inline (hand-off from Dictate). */
+.fb-dot { position: absolute; left: 0; top: 0; z-index: 2; border-radius: 50%; }
+.fb-dot__fill { display: block; width: 100%; height: 100%; border-radius: inherit; background-color: var(--bar-error); }
+/* The Dictate glyph, fading out over the dot at the button's slot (370, 111). */
+.fb-dot__mic {
+  position: absolute;
+  left: 354px;
+  top: 95px;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--violet-on);
+}
+.fb-timer {
+  position: absolute;
+  left: 348px;
+  top: 180.5px;
+  z-index: 2;
+  width: 44px;
+  text-align: center;
+  color: var(--bar-fg-2);
+  font-family: var(--font-mono-new);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+/* ---- Waveform eiTZk: w26, column, gap 3, center; bars 3 high, $lime, pill.
+   Bar length is written by the level engine. ---- */
 .wave {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 3px;
-  width: 26px;                     /* room for a bar at full length */
+  position: absolute;
+  left: 357px;
+  top: 83.5px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 26px;
 }
 .wave__bar {
-  height: 3px;                     /* thickness — also the resting diameter */
+  height: 3px;
   flex: 0 0 3px;                   /* never let the column flex squash it oval */
   border-radius: 9999px;           /* true circle at rest, true pill extended */
-  background: var(--fathom-400);
-  transition: width 0.055s linear;
+  background: var(--lime);
+  /* Rings in from the centre: delay per ring is set inline (stagger.ring). */
+  animation: wave-in var(--dur-micro) var(--ease-out) backwards;
+}
+@keyframes wave-in { from { opacity: 0; } }
+/* Collapse, outer ring first: delay per ring is set inline. */
+.wave--out .wave__bar {
+  animation: none;
+  width: 0 !important;
+  opacity: 0;
+  transition: width var(--dur-micro) var(--ease-exit), opacity var(--dur-micro) var(--ease-exit);
 }
 
-.rec__error {
-  position: absolute; right: 44px; top: 50%;
-  transform: translateY(-50%);
-  max-width: 250px; padding: 9px 13px;
-  border-radius: 10px;
-  background: #4a1216; color: #ffd9d9;
-  font-size: 12px; line-height: 1.35;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.34);
+/* Reduce Motion meter (§5): five static segments in the waveform's slot. */
+.meter {
+  position: absolute;
+  left: 357px;
+  top: 83.5px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  width: 26px;
+  height: 87px;
+}
+.meter__seg { flex: none; width: 14px; height: 6px; border-radius: 9999px; background: var(--bar-raised); }
+.meter__seg--on { background: var(--lime); }
+
+/* ---- Pill glyph: spinner, check or error icon, centred at (370, 130) ---- */
+.fb-glyph { position: absolute; left: 348px; top: 108px; z-index: 2; width: 44px; height: 44px; }
+.fb-glyph__item {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.fb-glyph__item--done { color: var(--bar-success); }
+.fb-glyph__item--error { color: var(--bar-error); }
+.fb-glyph__blur { display: flex; }
+.fb-spinner { display: block; flex: none; width: 16px; height: 16px; }
+.fb-spinner svg { display: block; }
+.fb-spinner__track { stroke: var(--bar-line); }
+.fb-spinner__arc { stroke: var(--cyan); }
+.fb-spinner--static { color: var(--cyan); }
+.fb-check { display: block; }
+/* The whole error pill dismisses. */
+.fb .fb-pillbtn {
+  position: absolute;
+  left: 348px;
+  top: 108px;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
 }
 
-/* ---- transcribe / polish status ---- */
-.rec__pill--busy { display: grid; place-items: center; width: 40px; padding: 18px 0; cursor: default; }
-.spinner {
-  width: 15px; height: 15px; flex: 0 0 15px;
-  border: 2px solid rgba(242, 241, 236, 0.25);
-  border-top-color: var(--fathom-400);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+/* ---- Cards (Bar / Partial B2ifmT, Bar Error PWeE1): w304, padding 14,
+   radius-md, x 36. Height and y are animated inline; the content is clipped
+   to the surface while it morphs, the shadow is not. ---- */
+.fb-card {
+  position: absolute;
+  left: 36px;
+  top: 0;
+  z-index: 2;
+  width: 304px;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  background: var(--bar-bg);
+  box-shadow: inset 0 0 0 1px var(--bar-line), 0 10px 28px var(--fb-shadow-45);
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.fb-card__clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.fb-card__content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  box-sizing: border-box;
+}
+
+/* Partial: gap 10 */
+.fb-partial { gap: 10px; }
+.fb-partial__head { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 10px; }
+.fb-partial__state {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--cyan);
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+/* A notice during a dictation takes the head label, in $warn (§4.1.10). */
+.fb-partial__state--notice { color: var(--bar-warn); }
+.fb-partial__label {
+  color: inherit;
+  font-family: var(--font-mono-new);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 1.4px;
+  line-height: normal;
+}
+.fb-partial__time {
+  flex: none;
+  color: var(--bar-fg-3);
+  font-family: var(--font-mono-new);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: normal;
+}
+/* The viewport pads 4 px for blur halos; pull it back so the text keeps its box. */
+.fb-partial__view { margin: -4px; }
+.fb-partial__text {
+  /* The bar is dark in both themes: the unconfirmed tail is 60 % of ITS fg. */
+  --fg: var(--bar-fg-fixed);
+  --stream-unconfirmed: color-mix(in srgb, var(--bar-fg-fixed) 60%, transparent);
+  color: var(--bar-fg-fixed);
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+/* Progress vL8N6: h3, $bar-raised, radius 2, clip; fill $cyan. The slot is
+   always there; the track only shows once the dictation is being processed. */
+.fb-partial__progress { height: 3px; }
+.fb-partial__track {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bar-raised);
+  overflow: hidden;
+}
+.fb-partial__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--cyan);
+}
+
+/* Error: gap 12 */
+.fb-error { gap: 12px; }
+.fb-error__head { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.fb-error__tile {
+  position: relative;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  background: var(--bar-error-soft);
+  color: var(--bar-error);
+}
+/* Attention ring (§2.5): a 1.5 px outline in the accent that scales out once. */
+.fb-error__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px var(--bar-error);
+  pointer-events: none;
+}
+.fb-error__text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fb-error__title {
+  color: var(--bar-fg-fixed);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: normal;
+  overflow-wrap: anywhere;
+  /* An error is a sentence, never a wall of text: two lines, then an ellipsis. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.fb-error__meta {
+  color: var(--bar-fg-3);
+  font-family: var(--font-mono-new);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.4px;
+  line-height: normal;
+  overflow-wrap: anywhere;
+}
+.fb-error__message {
+  margin: 0;
+  color: var(--bar-fg-2);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden;
+}
+/* Wraps before any label is squeezed. */
+.fb-error__actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Retry wdUm5: h28, padding 0 12 0 10, gap 6, $bar-error, pill; icon retry/16 + label 12.5/600, $bar-on-fg */
+.fb .fb-error__retry {
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bar-error);
+  color: var(--bar-on-fg);
+  white-space: nowrap;
+}
+.fb-error__retry-label {
+  color: var(--bar-on-fg);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: normal;
+}
+/* Change model WZ6O4: h28, padding 0 12, $bar-raised, pill; label 12.5/500 $bar-fg-fixed */
+.fb .fb-error__change {
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bar-raised);
+  white-space: nowrap;
+}
+.fb-error__change-label {
+  color: var(--bar-fg-fixed);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: normal;
+}
+.fb-error__spacer { flex: 1 1 0; height: 1px; }
+.fb .fb-error__esc {
+  flex: none;
+  color: var(--bar-fg-3);
+  font-family: var(--font-mono-new);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: normal;
+  transition: color var(--dur-hover-out) var(--ease-out);
+}
+.fb .fb-error__esc:hover { color: var(--bar-fg-2); transition-duration: var(--dur-hover-in); }
+
+/* ---- Bar / Notice lPWEY: pill, padding 6 14 6 6, gap 10, center. Vertically
+   centred on the bar; the anchor's x (8 px left of the shape) is animated. ---- */
+.fb-notice-anchor {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+.fb-notice {
+  flex: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  /* Never wider than the window allows next to the capsule; long copy wraps. */
+  max-width: 324px;
+  box-sizing: border-box;
+  padding: 6px 14px 6px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bar-bg);
+  box-shadow: inset 0 0 0 1px var(--bar-line), 0 10px 28px var(--fb-shadow-45);
+}
+.fb-notice__tile {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--bar-raised);
+  color: var(--bar-fg-fixed);
+}
+.fb-notice__text {
+  min-width: 0;
+  color: var(--bar-fg-fixed);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
+}
+/* Text, key, text sit 10 apart (the frame's gap), with or without word spans. */
+.fb-notice__text,
+.fb-notice__text .bw-unit {
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  white-space: normal;
+}

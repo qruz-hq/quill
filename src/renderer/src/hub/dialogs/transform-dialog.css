@@ -1,0 +1,194 @@
+/* "Dialog, New transform" (ddCUn) / "Dialog, Edit transform" (OWYl9)
+   specifics. Owner: transforms surface. Accent vars come from .dlg--<accent>. */
+
+/* Shortcut (lCI92): row, gap 8, center; text 14/500 accent ink */
+.tfdlg__shortcut { display: flex; align-items: center; gap: 8px; }
+.tfdlg__shortcut-text { font-family: var(--font-body); font-size: 14px; font-weight: 500; line-height: normal; color: var(--acc-on); }
+
+/* Row / Identity (jemqX): row, gap $bento-gap, height 212 */
+.tfdlg__identity { display: flex; gap: var(--bento-gap); height: 212px; flex: none; }
+/* Tile / Name (GF93J): gap 20, fill */
+.tfdlg__name { gap: 20px; flex: 1 1 0; }
+/* Tile / Shortcut (nESXk): gap 12, width 196 */
+.tfdlg__shortcut-tile { gap: 12px; flex: 0 0 196px; width: 196px; }
+/* Slots (L0wjQz): vertical, gap 6; Row: gap 6 */
+.tfdlg__slots { display: flex; flex-direction: column; gap: 6px; }
+.tfdlg__slot-row { display: flex; gap: 6px; }
+/* Slot: fill × 34, center, radius-xs; mono 12/500.
+   taken: $surface-2, $fg-3 · selected: accent, accent ink, 600 · free: 1px $line-strong, $fg */
+.tfdlg__slot {
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  /* Selected state colour: dur.fast, ease.standard (§4.13) */
+  transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+.tfdlg__slot:focus-visible { transition: none; }
+.tfdlg__slot--taken { background: var(--surface-2); color: var(--fg-3); cursor: default; }
+.tfdlg__slot--selected { background: var(--acc); color: var(--acc-on); font-weight: 600; }
+.tfdlg__slot--free { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--fg); }
+.tfdlg__slot--free:hover { background: var(--surface-2); }
+.tfdlg__slot:focus-visible, .tfdlg__option:focus-visible, .tfdlg__token:focus-visible, .tfdlg__delete:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+}
+/* Caption: body 12 $fg-3 */
+.tfdlg__caption { font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: 20px; color: var(--fg-3); }
+
+/* Tile / Rule (IhVDD): gap 16. The gap lives on the conditional field as
+   padding-top, so it opens and closes with the field's real height. */
+.tfdlg__rule { flex: none; }
+.tfdlg__cond { padding-top: 16px; }
+/* Segmented (XPl64): row, gap 2, padding 4, $surface-2, 1px $line, pill */
+.tfdlg__segmented {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+/* Option: fill × 32, center, pill; 13/500 $fg-2. Selected: $fg fill, $fg-inverse, 600.
+   The fill is a text-free indicator that moves between options. */
+.tfdlg__option {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
+  color: var(--fg-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.tfdlg__option:not(.is-selected):hover { color: var(--fg); }
+.tfdlg__option.is-selected { color: var(--fg-inverse); font-weight: 600; }
+.tfdlg__option-ind { background: var(--fg); }
+/* Stand-in for the indicator while a card is still morphing into the dialog */
+.tfdlg__option-ind--static { position: absolute; inset: 0; border-radius: var(--radius-pill); }
+.tfdlg__option-label { position: relative; }
+
+/* Textarea (ZmSKk): vertical, gap 10, padding 12, $surface-2, 1px $line, radius-sm.
+   Value mono 13, line-height 1.5. Focus: 1.5px accent. */
+.tfdlg__textarea {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.tfdlg__textarea:focus-within { box-shadow: inset 0 0 0 1.5px var(--acc); }
+.tfdlg__textarea textarea {
+  width: 100%;
+  min-height: 39px;               /* two lines at 13/1.5 */
+  max-height: 160px;
+  field-sizing: content;          /* grows with the template, like the node */
+  padding: 0;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: var(--fg);
+  caret-color: var(--acc);
+  font-family: var(--font-mono-new);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.tfdlg__textarea textarea::placeholder { color: var(--fg-3); }
+/* Token {text} (xfBhE): padding 2 6, accent-soft, radius-xs; mono 13/500 accent */
+.tfdlg__token {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: var(--acc-soft);
+  color: var(--acc);
+  font-family: var(--font-mono-new);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: normal;
+  cursor: pointer;
+}
+
+/* Tile / Preview (fCI74): vertical, gap 12, padding 20, accent-soft, radius-lg */
+.tfdlg__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: none;
+  padding: 20px;
+  background: var(--acc-soft);
+  border-radius: var(--radius-lg);
+}
+.tfdlg__preview-label {
+  font-family: var(--font-mono-new);
+  font-size: var(--type-label);
+  font-weight: 500;
+  letter-spacing: 1.4px;
+  line-height: normal;
+  color: var(--acc);
+}
+.tfdlg__sample { font-family: var(--font-body); font-size: 12px; font-weight: 400; line-height: normal; color: var(--fg-3); }
+/* You say (vhfv2): row, gap 10; icon microphone/16/active in accent; In 13, lh 1.4, $fg-2 */
+.tfdlg__say { display: flex; gap: 10px; }
+.tfdlg__say-icon { flex: none; color: var(--acc); }
+.tfdlg__in {
+  flex: 1 1 0;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--fg-2);
+}
+/* Quill types (C7yXX): vertical, padding 12 14, $surface, radius-sm; Out mono 12.5, lh 1.5 */
+.tfdlg__types { display: flex; flex-direction: column; padding: 12px 14px; background: var(--surface); border-radius: var(--radius-sm); }
+.tfdlg__out-gap { height: 1.5em; }   /* an empty line of the output */
+.tfdlg__out {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono-new);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+/* Delete (NeyvE): h36, gap 6, padding 0 14 0 12, $error-soft, pill; icon trash/16 + 13/600 $error */
+.tfdlg__delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--error-soft);
+  color: var(--error);
+  cursor: pointer;
+}
+.tfdlg__delete-label { font-family: var(--font-body); font-size: 13px; font-weight: 600; line-height: normal; }

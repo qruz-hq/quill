@@ -1,0 +1,85 @@
+/* Hub title bar: "Title Bar" (fc0Qi) in Hub - Dictation (vBtIm), identical in
+   every Hub/Settings frame. Owner: hub/shell. */
+.tb {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px 0 20px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.tb button { -webkit-app-region: no-drag; }
+
+/* "Left": width 260, gap 22, alignItems center */
+.tb__left { flex: none; display: flex; align-items: center; gap: 22px; width: 260px; }
+/* "Traffic Lights": gap 8, three 12×12 ellipses. Kept as an invisible box so the
+   brand sits where the design puts it; macOS paints the real buttons on top. */
+.tb__lights { flex: none; display: flex; gap: 8px; }
+.tb__light { width: 12px; height: 12px; border-radius: 50%; visibility: hidden; }
+/* "Brand": gap 8, alignItems center */
+.tb__brand { display: flex; align-items: center; gap: 8px; color: var(--fg); }
+.tb__mark { color: var(--fg); }
+/* "Wordmark": $font-display 19 / 700, letterSpacing -0.3, $fg */
+.tb__wordmark {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: normal;
+  color: var(--fg);
+}
+
+/* "Nav": $surface, pill, stroke 1 $line, gap 2, padding 4, alignItems center */
+.tb-nav {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+/* "Nav Item" (Y6sNHa) at the title-bar instance size: fit width, height 32,
+   padding 0 14, gap 10, pill; label 14/500 $fg-2, icon 16 $fg-2. */
+.tb-nav__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--fg-2);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+  cursor: pointer;
+  /* Becoming active or inactive: $fg-2 <-> $fg-inverse over dur.fast. */
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+/* house hover; no design state. Crisp arrival (dur.hoverIn), soft release. */
+.tb-nav__item:not(.is-active):hover {
+  color: var(--fg);
+  transition: color var(--dur-hover-in) var(--ease-out);
+}
+.tb-nav__item:focus-visible { transition: none; }
+/* Icon and label sit above the pill. */
+.tb-nav__item > .qicon, .tb-nav__label { position: relative; }
+.tb-nav__label { color: inherit; }
+/* "Nav Item / Active" (xjnzP): fill $fg, label + filled icon $fg-inverse.
+   The fill is the shared pill, so it can fly from item to item. */
+.tb-nav__item.is-active { color: var(--fg-inverse); }
+.tb-nav__pill { background: var(--fg); }
+.tb-nav__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* "Divider": 1 × 18, $line */
+.tb-nav__divider { flex: none; width: 1px; height: 18px; background: var(--line); }
+
+/* "Right": width 260, justifyContent end, alignItems center */
+.tb__right { flex: none; display: flex; justify-content: flex-end; align-items: center; width: 260px; }

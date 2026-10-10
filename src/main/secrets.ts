@@ -42,7 +42,7 @@ export class Secrets {
     if (existsSync(this.file)) unlinkSync(this.file)
   }
 
-  /** Safe to show in the UI — never the real value. */
+  /** Safe to show in the UI, never the real value. */
   masked(): string | null {
     const k = this.get()
     return k ? `…${k.slice(-4)}` : null

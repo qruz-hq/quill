@@ -1,0 +1,35 @@
+/* Chip: Atoms "Chip" (D6EoU3): a trigger chip on an accent/dark surface.
+   StatusChip, "Status Chip / Granted|Missing|Checking" (v7GV4a XX63s y4chrl).
+   Owner: shared/ui. */
+.q-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--on-accent-tint);
+  color: var(--bar-fg-fixed);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.q-status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+}
+.q-status--granted  { background: var(--success-soft); color: var(--success); }
+.q-status--missing  { background: var(--error-soft);   color: var(--error); }
+.q-status--checking { background: var(--warn-soft);    color: var(--warn); }

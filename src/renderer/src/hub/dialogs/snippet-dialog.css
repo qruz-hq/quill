@@ -1,0 +1,10 @@
+/* "Dialog, New snippet" (VnBia) specifics. Owner: snippets surface. */
+
+/* Tile / Form: gap 18 (padding 20, $surface, radius-lg from .dlg__tile) */
+.snipdlg__form { gap: 18px; }
+/* Input: gap 8 (icon microphone/16 $fg-3 then value) */
+.dlg__input.snipdlg__say { gap: 8px; }
+.snipdlg__mic { flex: none; color: var(--fg-3); }
+/* Textarea: vertical, padding 11 12, height 96; value 14, line-height 1.45 */
+.dlg__input.snipdlg__area { align-items: stretch; height: 96px; }
+.snipdlg__area textarea { height: 100%; resize: none; line-height: 1.45; }

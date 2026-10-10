@@ -13,7 +13,14 @@ export type Transform = {
   kind: TransformKind
   /** template: text with {text}; case: upper|lower|title. */
   config: string
+  /** Times applied with ⌥<n> (never previews). */
+  uses?: number
+  /** Epoch ms of the last real application. */
+  lastUsedAt?: number
 }
+
+/** Broadcast on `transforms:applied` whenever ⌥<n> applies a transform. */
+export type TransformApplied = { id: string; name: string; slot: number; at: number; uses: number }
 
 const SEEDS: Omit<Transform, 'id'>[] = [
   { name: 'Bullet list', description: 'Break a spoken list into bullet points', slot: 1, kind: 'bullets', config: '' },
@@ -52,6 +59,9 @@ export class TransformStore {
 
   save(patch: Partial<Transform> & { id?: string }): Transform {
     this.load()
+    // Counters are main-owned; a stale copy from the renderer must not reset them.
+    const { uses: _u, lastUsedAt: _l, ...clean } = patch
+    patch = clean
     if (patch.id) {
       const found = this.items.find((t) => t.id === patch.id)
       if (found) { Object.assign(found, patch); this.persist(); return found }
@@ -76,6 +86,25 @@ export class TransformStore {
     this.load()
     this.items = this.items.filter((t) => t.id !== id)
     this.persist()
+  }
+
+  /** Counts one real application; returns the event payload. */
+  recordUse(id: string): TransformApplied | null {
+    this.load()
+    const t = this.items.find((x) => x.id === id)
+    if (!t) return null
+    t.uses = (t.uses ?? 0) + 1
+    t.lastUsedAt = Date.now()
+    this.persist()
+    return { id: t.id, name: t.name, slot: t.slot, at: t.lastUsedAt, uses: t.uses }
+  }
+
+  /** The most recently applied transform, for the hub's "Last applied" tile. */
+  lastApplied(): TransformApplied | null {
+    this.load()
+    let best: Transform | null = null
+    for (const t of this.items) if (t.lastUsedAt && (!best || t.lastUsedAt > (best.lastUsedAt ?? 0))) best = t
+    return best ? { id: best.id, name: best.name, slot: best.slot, at: best.lastUsedAt!, uses: best.uses ?? 0 } : null
   }
 
   apply(t: Transform, text: string): string {

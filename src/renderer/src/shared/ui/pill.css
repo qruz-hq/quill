@@ -1,0 +1,41 @@
+/* Pill: Atoms "Pill" (n1daMi), "Pill / On" (ih0W1), "Pill / Small" (rSLwX);
+   "Badge" (nUen5). Owner: shared/ui. */
+.q-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--surface-3);
+  color: var(--fg-2);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: normal;
+  white-space: nowrap;
+}
+.q-pill--on { background: var(--violet); color: var(--violet-on); }
+.q-pill--sm { padding: 3px 8px; font-size: 11px; }
+button.q-pill { cursor: pointer; -webkit-app-region: no-drag; }
+button.q-pill:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.q-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: var(--surface-3);
+  color: var(--fg-2);
+  font-family: var(--font-mono-new);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: normal;
+  white-space: nowrap;
+}
+/* Badge tone lime (Todos Count vaSxH): $lime-soft, $lime ink. Light theme has
+   $lime on light $lime-soft below contrast, so it uses $lime-on there. */
+.q-badge--lime { background: var(--lime-soft); color: var(--lime); }
+@media (prefers-color-scheme: light) { :root:not([data-theme='dark']) .q-badge--lime { color: var(--lime-on); } }
+:root[data-theme='light'] .q-badge--lime { color: var(--lime-on); }

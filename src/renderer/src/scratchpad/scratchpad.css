@@ -1,176 +1,598 @@
-/* Floating Scratchpad — modelled on the real app's Opt+S window. */
+/* Scratchpad window, 1:1 from design.pen "Scratchpad - Window" (vytSm).
+   Each block names the node it translates. Strokes are inset box-shadows so,
+   like Pencil's inner strokes, they never affect layout. Hover/focus states are
+   house states (the design draws none).
+   Motion (docs/MOTION.md §4.9, §4.13): hover colour is 60 ms in / 160 ms out,
+   state colour is dur.fast ease.standard, focus rings never animate. Anything
+   that moves is driven from Scratchpad.tsx with the shared motion tokens. */
 
 html, body, #root { height: 100%; margin: 0; background: transparent; }
 .pad-body { overflow: hidden; }
 
+/* Window vytSm: vertical, fill $bg, radius $radius-sm, stroke $line 1 inner, clip.
+   The window's drop shadow is the OS one (hasShadow); a CSS shadow would be
+   clipped by the transparent window. */
 .pad {
   height: 100vh;
-  display: flex; flex-direction: column;
-  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  background: var(--sand-200);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+.pad button { font: inherit; color: inherit; border: 0; padding: 0; background: none; cursor: pointer; }
+.pad button:focus-visible, .pad input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* Hover recipe (§4.13): crisp arrival, soft release. */
+.pad .pad__tab, .pad .pad__newTab, .pad .pad__win, .pad .pad__round, .pad__note,
+.pad .pad__footItem, .pad .pad__fmtBtn, .pad__tabClose {
+  transition-property: background-color, color;
+  transition-duration: var(--dur-hover-out);
+  transition-timing-function: var(--ease-out);
+}
+.pad .pad__tab:hover, .pad .pad__newTab:hover, .pad .pad__win:hover, .pad .pad__round:hover, .pad__note:hover,
+.pad .pad__footItem:hover, .pad .pad__fmtBtn:hover, .pad__tabClose:hover {
+  transition-duration: var(--dur-hover-in);
 }
 
-/* ---- title bar ---- */
+/* ---- Title Bar BOmlw: row, h44, gap 10, padding 0 8 0 14, align center ---- */
 .pad__bar {
-  display: flex; align-items: center; gap: 8px;
-  height: 40px; flex: 0 0 40px;
-  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 44px;
+  padding: 0 8px 0 14px;
   -webkit-app-region: drag;
 }
-.pad__mark { color: var(--text-primary); flex: 0 0 auto; }
-.pad__tabs { display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; overflow-x: auto; }
+.pad__mark { color: var(--fg-2); }                 /* icon/app-mark/16, $fg-2 */
+
+/* Tabs vqwDC: fill, gap 4, align center */
+.pad__tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
 .pad__tabs::-webkit-scrollbar { display: none; }
 
-.tab {
+/* The slot's real width animates when a tab opens or closes (Scratchpad.tsx). */
+.pad__tabSlot { display: flex; flex: none; }
+
+/* Tab MiEje / BgUSI: h28, pill, gap 6, padding 0 6 0 12, align center */
+.pad .pad__tab {
   -webkit-app-region: no-drag;
-  display: flex; align-items: center; gap: 7px;
-  max-width: 170px; height: 26px; padding: 0 8px;
-  border: 0; border-radius: 7px;
-  background: transparent; color: var(--text-secondary);
-  font: inherit; font-size: 13px; cursor: pointer;
-}
-.tab:hover { background: rgba(0, 0, 0, 0.045); }
-.tab.is-active { background: var(--bg-content); color: var(--text-primary); font-weight: 550; }
-.tab__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab__x { opacity: 0.5; font-size: 14px; line-height: 1; }
-.tab__x:hover { opacity: 1; }
-.tab--add { justify-content: center; width: 26px; padding: 0; font-size: 16px; }
-
-.pad__icon {
-  -webkit-app-region: no-drag;
-  width: 26px; height: 26px; flex: 0 0 26px;
-  display: grid; place-items: center;
-  border: 0; border-radius: 7px;
-  background: transparent; color: var(--text-secondary);
-  font-size: 15px; cursor: pointer;
-}
-.pad__icon:hover { background: rgba(0, 0, 0, 0.06); color: var(--text-primary); }
-
-/* ---- layout ---- */
-.pad__body { flex: 1; display: flex; min-height: 0; }
-
-.pad__side {
-  width: 168px; flex: 0 0 168px;
-  display: flex; flex-direction: column;
-  padding: 0 0 6px;
-  border-right: 1px solid rgba(0, 0, 0, 0.05);
-}
-.side__item {
-  display: flex; align-items: center; gap: 10px;
-  height: 34px; padding: 0 12px;
-  border: 0; background: transparent;
-  font: inherit; font-size: 13px; color: var(--text-primary);
-  text-align: left; cursor: pointer;
-}
-.side__item:hover, .side__item.is-active { background: rgba(0, 0, 0, 0.045); }
-.side__item svg { width: 15px; height: 15px; flex: 0 0 15px; }
-.side__aa { font-size: 11px; font-weight: 700; width: 15px; }
-.side__item--foot { margin-top: 0; }
-
-.side__search {
-  display: flex; align-items: center; gap: 9px;
-  height: 34px; padding: 0 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-.side__search svg { width: 14px; height: 14px; color: var(--text-tertiary); flex: 0 0 14px; }
-.side__search input {
-  flex: 1; min-width: 0;
-  border: 0; background: transparent;
-  font: inherit; font-size: 13px; color: var(--text-primary);
-  outline: none;
-}
-.side__search input::placeholder { color: var(--text-tertiary); }
-
-.side__list { flex: 1; overflow-y: auto; padding: 6px 0; }
-.side__note {
   position: relative;
-  padding: 7px 12px;
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  max-width: 220px;
+  height: 28px;
+  padding: 0 6px 0 12px;
+  border-radius: var(--radius-pill);
+  color: var(--fg-2);
 }
-.side__note:hover { background: rgba(0, 0, 0, 0.04); }
-.side__note.is-active { background: rgba(0, 0, 0, 0.06); }
-.side__noteTitle {
-  font-size: 13px; font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.pad .pad__tab.is-active { color: var(--fg); }
+.pad .pad__tab:not(.is-active):hover { background: var(--surface-2); }
+/* Active fill $surface-3: a text-free indicator that slides between tabs. */
+.pad__tabPill { background: var(--surface-3); }
+.pad__tabPill--static { position: absolute; inset: 0; border-radius: 9999px; }
+.pad__tab > :not(.pad__tabPill) { position: relative; }
+.pad__tabDot {                                       /* Dot: 6×6 $tangerine */
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tangerine);
 }
-.side__noteTime { margin-top: 2px; font-size: 11.5px; color: var(--text-tertiary); }
-.side__del {
-  position: absolute; top: 8px; right: 8px;
-  display: none;
-  width: 22px; height: 22px;
-  border: 0; border-radius: 6px;
-  background: var(--sand-100); color: var(--destructive-700);
-  cursor: pointer;
+.pad__tabLabel {                                     /* Label 12.5/500 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 16px;
 }
-.side__del svg { width: 13px; height: 13px; }
-.side__note:hover .side__del { display: grid; place-items: center; }
+.pad__tabClose { display: flex; flex: none; color: var(--fg-3); }   /* icon/close/16 */
+.pad__tab.is-active .pad__tabClose { color: var(--fg-2); }
+.pad__tabClose:hover { color: var(--fg); }
 
-/* ---- editor ---- */
-.pad__main { position: relative; flex: 1; min-width: 0; padding: 8px 8px 8px 0; }
-.pad__expandSide {
-  position: absolute; top: 14px; left: 12px; z-index: 2;
-  width: 26px; height: 26px;
-  display: grid; place-items: center;
-  border: 0; border-radius: 7px;
-  background: transparent; color: var(--text-secondary); cursor: pointer;
+/* New Tab R1A2zs, Expand X86s0, Close t1I0z: 28×28 pill, centred 16 icon */
+.pad .pad__newTab,
+.pad .pad__win,
+.pad .pad__round {
+  -webkit-app-region: no-drag;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  color: var(--fg-2);
+}
+.pad .pad__newTab { color: var(--fg-3); }
+.pad .pad__newTab:hover, .pad .pad__win:hover { background: var(--surface-2); color: var(--fg); }
+.pad .pad__round:hover { background: var(--surface-3); color: var(--fg); }
+
+/* ---- Body y2Th0: row, fill, gap 8, padding 0 8 8 8 ---- */
+.pad__body {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  padding: 0 8px 8px 8px;
 }
 
-.pad__editor {
-  height: 100%; overflow-y: auto;
-  padding: 16px 18px 52px;
-  border-radius: 10px;
-  background: var(--bg-content);
-  font-size: 14px; line-height: 1.55;
+/* The slot's real width animates when the pane collapses (Scratchpad.tsx);
+   it carries the pane's radius so the clipped edge stays round. */
+.pad__notesSlot { display: flex; flex: none; min-height: 0; border-radius: var(--radius-md); }
+
+/* Notes jKD4h: 204 wide, vertical, gap 8, padding 8, $surface, radius-md */
+.pad__notes {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 204px;
+  min-height: 0;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+/* The pane's content layer (it fades while the width moves). */
+.pad__notesInner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Head WmikL: row, gap 2, padding 2 0 0 6, align center */
+.pad__notesHead {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding: 2px 0 0 6px;
+}
+.pad__notesTitle {                                   /* Title: display 15/600 $fg */
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--fg);
+}
+.pad__spacer { flex: 1; height: 1px; min-width: 0; }
+
+/* Search itByz (Search xWpB8 instance): h32, padding 0 10, gap 8, radius-xs,
+   $surface-2, stroke $line 1; magnifier $fg-3; placeholder 12.5 $fg-3 */
+.pad__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg-3);
+}
+.pad__search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   outline: none;
-  caret-color: var(--glow-300);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--fg);
 }
-.pad__editor:empty::before {
-  content: attr(data-placeholder);
-  color: var(--text-tertiary);
+.pad__search input::placeholder { color: var(--fg-3); }
+.pad__search:focus-within { box-shadow: inset 0 0 0 1px var(--line-strong); }
+
+/* List MqmnM: vertical, gap 2, fill */
+.pad__list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
-.pad__editor blockquote {
-  margin: 8px 0; padding-left: 12px;
-  border-left: 3px solid var(--vast-200);
-  color: var(--text-secondary);
+.pad__list::-webkit-scrollbar { display: none; }
+
+/* Note zmk5K: row, gap 8, padding 8 8 8 10, radius-xs, align center;
+   active fill $tangerine-soft */
+.pad__note {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 8px 8px 8px 10px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
 }
-.pad__editor pre {
-  padding: 10px 12px; border-radius: 8px;
-  background: var(--sand-300);
-  font-family: var(--font-mono); font-size: 12.5px;
+.pad__note:hover { background: var(--surface-2); }
+.pad__note.is-active, .pad__note.is-active:hover { background: transparent; }
+/* Active fill $tangerine-soft: a text-free indicator that moves between rows. */
+.pad__notePill { background: var(--tangerine-soft); }
+.pad__note > :not(.pad__notePill) { position: relative; }
+.pad__noteText {                                     /* Text: vertical, gap 2, fill */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.pad__noteTitle {                                    /* 13/500 $fg (active 600), wraps */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 17px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.pad__note.is-active .pad__noteTitle { font-weight: 600; }
+.pad__noteTime {                                     /* mono 10/400 $fg-3 (active $tangerine) */
+  font-family: var(--font-mono-new);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 13px;
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+.pad__note.is-active .pad__noteTime { color: var(--tangerine); }
+.pad .pad__noteDel {                                 /* icon/trash/16 $fg-2: shown on the active note */
+  display: none;
+  flex: none;
+  opacity: 0;
+  color: var(--fg-2);
+  /* Row action reveal (§4.13): micro in, flash out. */
+  transition: opacity var(--dur-flash) var(--ease-out), display var(--dur-flash) allow-discrete,
+    color var(--dur-hover-out) var(--ease-out);
+}
+.pad__note.is-active .pad__noteDel,
+.pad__note:hover .pad__noteDel {
+  display: flex;
+  opacity: 1;
+  transition: opacity var(--dur-micro) var(--ease-out), display var(--dur-micro) allow-discrete,
+    color var(--dur-hover-in) var(--ease-out);
+}
+@starting-style {
+  .pad__note.is-active .pad__noteDel,
+  .pad__note:hover .pad__noteDel { opacity: 0; }
+}
+.pad .pad__noteDel:hover { color: var(--error); }
+
+/* Footer tEaGX: vertical, gap 2 */
+.pad__foot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: none;
+}
+
+/* Transforms menu: the Menu component I8sEup, opened above the footer.
+   Menu: 178 wide, vertical, padding 5, $surface, stroke $line 1, radius-md,
+   shadow 0 12 32 #00000024. Menu Item: h32, gap 9, padding 0 9, radius 7;
+   label 13.5/400 $fg. */
+.pad__menuScrim { position: fixed; inset: 0; z-index: 20; }
+.pad__menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  width: 178px;
+  padding: 5px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow-e2);
+  transform-origin: bottom left;                     /* grows out of its trigger */
+}
+.pad .pad__menuItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 7px;
+  color: var(--fg);
+  text-align: left;
+}
+.pad .pad__menuItem:hover { background: var(--surface-2); }
+.pad__menuLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 18px;
+}
+/* Transforms RCimB / Formatting pCdx1: h32, gap 8, padding 0 10, radius-xs;
+   label 12.5/500 $fg-2; active fill $surface-3, label + icon $fg */
+.pad .pad__footItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
+  color: var(--fg-2);
+  text-align: left;
+}
+.pad .pad__footItem:hover { background: var(--surface-2); }
+.pad .pad__footItem.is-active { background: var(--surface-3); color: var(--fg); }
+/* Selected state colour is a state change, not a hover: dur.fast ease.standard. */
+.pad .pad__footItem.is-active, .pad .pad__fmtBtn.is-on {
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-standard);
+}
+.pad__footLabel { font-size: 12.5px; font-weight: 500; line-height: 16px; }
+
+/* ---- Editor to64Y: vertical, gap 14, padding 22 26 14 26, $surface, radius-md ---- */
+.pad__editor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 26px 14px 26px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.pad .pad__showNotes { position: absolute; top: 12px; right: 12px; }
+/* Keep a long title clear of the Show notes button (452 → 466 in the editor). */
+.pad__editor.is-collapsed .pad__head { padding-right: 14px; }
+
+/* Head AIjlJ: vertical, gap 4 */
+.pad__head { display: flex; flex-direction: column; gap: 4px; flex: none; }
+.pad__title {                                        /* display $type-title-2 (22)/600 $fg */
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-family: var(--font-display);
+  font-size: var(--type-title-2);
+  font-weight: 600;
+  line-height: 26px;
+  color: var(--fg);
+}
+.pad__title::placeholder { color: var(--fg-3); }
+.pad__meta {                                         /* mono 10/400, letter-spacing 0.4, $fg-3 */
+  min-height: 13px;
+  font-family: var(--font-mono-new);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 13px;
+  letter-spacing: 0.4px;
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Content x5tyb: vertical, gap 12, fill */
+.pad__content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.pad__content::-webkit-scrollbar { display: none; }
+
+/* The document: each block is a sibling in Content, 12 apart.
+   P1: body 14/400, line-height 1.55, $fg. */
+.pad__doc {
+  flex: none;
+  outline: none;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--fg);
+  caret-color: var(--tangerine);
+  overflow-wrap: anywhere;
+}
+.pad__doc:empty { display: block; min-height: 22px; }
+/* One wrap per open note; a tab switch cross-fades two of them. */
+.pad__docWrap { position: relative; flex: none; }
+/* Voice note reveal: the words resolve on an overlay with the editor's own
+   metrics while the editor's ink and caret are transparent. */
+.pad__doc.is-revealing { color: transparent; caret-color: transparent; }
+.pad__reveal { position: absolute; inset: 0; pointer-events: none; user-select: none; }
+.pad__doc > * { margin: 0; }
+.pad__doc > * + * { margin-top: 12px; }
+
+/* Todo K4AWM: vertical, gap 6. Item: row, gap 10, align center, h18.
+   Checkbox KjdJY: 18 round, stroke $line-strong 1.5.
+   Checkbox / Done BDqkL: $lime with icon/check/16/active in $lime-on.
+   Done text $fg-3. */
+.pad__doc ul.todo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  list-style: none;
+}
+.pad__doc ul.todo > li {
+  position: relative;
+  min-height: 18px;
+  padding-left: 28px;                                /* 18 box + gap 10 */
+  line-height: 18px;
+  color: var(--fg);
+}
+.pad__doc ul.todo > li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  cursor: pointer;
+}
+.pad__doc ul.todo > li.done { color: var(--fg-3); }
+.pad__doc ul.todo > li.done::before { background: var(--lime); box-shadow: none; }
+.pad__doc ul.todo > li.done::after {               /* Quill check/16 active glyph */
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 16px;
+  background: var(--lime-on);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.707 9.793L3.707 8.793L2.293 10.207L3.293 11.207Q4.086 12 5 12Q5.914 12 6.707 11.207L13.207 4.707L11.793 3.293L5.293 9.793Q5.086 10 5 10Q4.914 10 4.707 9.793Z'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  pointer-events: none;
+}
+.pad__doc ul:not(.todo), .pad__doc ol { padding-left: 22px; }
+
+/* Quote b6n6m: row, gap 12. Rule: 3×22 $violet, radius 2.
+   Text: 14/400 italic, line-height 1.5, $fg-2. */
+.pad__doc blockquote {
+  position: relative;
+  min-height: 22px;
+  padding-left: 15px;                                /* rule 3 + gap 12 */
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--fg-2);
+}
+.pad__doc blockquote::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  min-height: 22px;
+  border-radius: 2px;
+  background: var(--violet);
+}
+
+/* Blocks the frame doesn't draw (house styles from the type scale). */
+.pad__doc h1 { font-family: var(--font-display); font-size: var(--type-title-3); font-weight: 600; line-height: 1.3; }
+.pad__doc h2 { font-family: var(--font-display); font-size: var(--type-body); font-weight: 600; line-height: 1.3; }
+.pad__doc pre {
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-mono-new);
+  font-size: 12px;
+  line-height: 1.5;
   white-space: pre-wrap;
 }
-.pad__editor ul, .pad__editor ol { padding-left: 22px; }
-.pad__editor ul.todo { list-style: none; padding-left: 6px; }
-.pad__editor ul.todo li::before { content: '☐ '; color: var(--text-tertiary); }
 
-.pad__copy {
-  position: absolute; right: 22px; bottom: 20px;
-  display: flex; align-items: center; gap: 7px;
-  height: 32px; padding: 0 14px;
-  border: 0; border-radius: 9999px;
-  background: #1a1a1a; color: #f2f1ec;
-  font: inherit; font-size: 13px; font-weight: 550;
-  cursor: pointer;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+/* Live Line gA7by: row, gap 8, align center.
+   Caret dQrh6: 2×18 $tangerine. Hint: 13/400 $fg-3.
+   Key ZdX1u (Keycap size="sm" instance): fill $surface-3, padding 2 8, label mono 11. */
+.pad__live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  align-self: flex-start;
+  cursor: text;
 }
-.pad__copy svg { width: 14px; height: 14px; }
+.pad__caret { flex: none; width: 2px; height: 18px; background: var(--tangerine); }
+.pad__hint { font-size: 13px; font-weight: 400; line-height: 17px; color: var(--fg-3); white-space: nowrap; }
+.pad .pad__key {
+  padding: 2px 8px;
+  background: var(--surface-3);
+}
 
-/* ---- formatting toolbar ---- */
-.fmt {
-  position: absolute; left: 18px; right: 18px; bottom: 14px;
-  display: flex; align-items: center; gap: 3px;
-  padding: 5px 7px;
-  border-radius: 9px;
-  background: var(--bg-content);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.05);
+/* Toolbar jRFFH: row, gap 8, align center */
+.pad__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
 }
-.fmt button {
-  min-width: 28px; height: 26px;
-  border: 0; border-radius: 6px;
-  background: transparent; color: var(--text-primary);
-  font: inherit; font-size: 12.5px; cursor: pointer;
+
+/* Format Bar ifu2l: h36, $surface-3, pill, gap 2, padding 4, align center */
+.pad__fmt {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  height: 36px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  transform-origin: bottom left;
 }
-.fmt button:hover { background: var(--sand-300); }
-.fmt__sep { width: 1px; height: 16px; margin: 0 4px; background: var(--vast-200); }
+/* Buttons: h28, pill, padding 0 8, centred; label 13/500 $fg-2.
+   On (B v7WSi): fill $surface, label $fg. */
+.pad .pad__fmtBtn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: none;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 17px;
+  color: var(--fg-2);
+}
+.pad .pad__fmtBtn:hover { color: var(--fg); }
+.pad .pad__fmtBtn.is-on { background: var(--surface); color: var(--fg); }
+.pad .pad__fmtBtn--b { font-weight: 600; }
+.pad .pad__fmtBtn--i { font-style: italic; }
+.pad .pad__fmtBtn--code { font-family: var(--font-mono-new); font-size: 11.5px; line-height: 15px; }
+.pad .pad__fmtBtn--icon { width: 32px; padding: 0; }       /* Checklist Sflqe: 32×28, no padding */
+.pad__sep { flex: none; width: 1px; height: 16px; background: var(--line-strong); }   /* Sep 1×16 */
+
+/* Copy LwTDw: h36, $violet, pill, gap 8, padding 0 16 0 12; icon + label
+   13/600 $violet-on */
+.pad .pad__copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  height: 36px;
+  padding: 0 16px 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--violet);
+  color: var(--violet-on);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 17px;
+  white-space: nowrap;
+}
+.pad .pad__copy:hover { background-image: linear-gradient(var(--scrim-light), var(--scrim-light)); }
+/* The 16 icon slot: copy and check swap inside it. */
+.pad__copyIcon { position: relative; display: flex; flex: none; width: 16px; height: 16px; }
+.pad__copyGlyph { display: flex; }

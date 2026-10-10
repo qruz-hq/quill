@@ -12,11 +12,11 @@ const TIMEOUT_MS = 20_000
  * Deadline after which the cleaned text is no longer worth waiting for, and the
  * raw transcript is pasted instead. The real app tracks the equivalent as
  * TimeToPasteText and abandons slow post-processing rather than stalling the
- * paste — a timeout is a failure threshold, this is a quality/latency trade.
+ * paste, a timeout is a failure threshold, this is a quality/latency trade.
  */
 const DEADLINE_MS = 2500
 
-/** Terse beats verbose — this is the prompt that won the 188-sentence sweep. */
+/** Terse beats verbose, this is the prompt that won the 188-sentence sweep. */
 /**
  * Conservative by default: punctuation, capitalisation, accents, filler, lists
  * and self-corrections only. Measured, word substitution is where this goes
@@ -150,7 +150,7 @@ export class Cleanup {
   /** For other main-process callers that need to reach OpenAI. Never sent to the renderer. */
   rawKey(): string | null { return this.key() }
 
-  /** Masked for display — never return the real key to the renderer. */
+  /** Masked for display, never return the real key to the renderer. */
   maskedKey(): string | null {
     const k = this.key()
     return k ? `sk-…${k.slice(-4)}` : null
@@ -217,7 +217,7 @@ export class Cleanup {
     const ms = Date.now() - started
 
     if (res.error === '__ABANDONED__') {
-      return { text: raw, note: `abandoned at ${ms}ms — pasted raw` }
+      return { text: raw, note: `abandoned at ${ms}ms, pasted raw` }
     }
     if (res.error) return { text: raw, note: `failed after ${ms}ms: ${res.error}` }
 
@@ -252,7 +252,7 @@ export class Cleanup {
     if (res.status === 0) return { text: '', error: res.body }
 
     if (res.status !== 200) {
-      // Older models reject reasoning_effort outright — retry without it.
+      // Older models reject reasoning_effort outright, retry without it.
       if (allowReasoningParam && /reasoning_effort|unsupported|unrecognized/i.test(res.body)) {
         return this.request(raw, model, false, fixMishearings)
       }
@@ -330,6 +330,6 @@ function rankChatModels(ids: string[]): string[] {
 function shortReason(body: string): string {
   try {
     const msg = JSON.parse(body)?.error?.message
-    return msg ? ` — ${String(msg).slice(0, 140)}` : ''
+    return msg ? `, ${String(msg).slice(0, 140)}` : ''
   } catch { return '' }
 }

@@ -1,53 +1,72 @@
 import { useEffect, useRef, useState } from 'react'
+import { usePresence } from 'motion/react'
+import { DUR_MS, FLOWBAR, LEVEL, STAGGER, useReduceMotion } from '../shared/motion'
+import { AT } from './choreo'
+import { runLevelEngine, runLevelSampler } from './useLevel'
 
-const BARS = 15
-const DECAY = 0.86
-/** Bar thickness, and its length at rest — equal, so silence renders as a dot. */
-const DOT = 3
-/** Length at full level. */
-const PEAK = 26
+const BARS = FLOWBAR.waveform.bars
+const MID = (BARS - 1) / 2
+/** Distance of bar `i` from the centre bar: the stagger ring it belongs to. */
+const ringOf = (i: number): number => Math.abs(i - MID)
 
 /**
- * Live level meter for the recording pill. Driven by real RMS from the Swift
- * helper; each frame shifts the history along so the bars scroll.
- *
- * Laid out vertically to match the Flow Bar's own orientation on the screen
- * edge: bars stack top-to-bottom and grow sideways. The level response is
- * deliberately unchanged from the original horizontal meter.
+ * Recording waveform (docs/MOTION.md §4.1.4, §4.1.5). Laid out vertically to
+ * match the bar on the screen edge: bars stack top to bottom and grow sideways.
+ * Under Reduce Motion it is replaced by the static 5-segment meter (§5).
  */
 export default function Waveform(): React.JSX.Element {
-  const [bars, setBars] = useState<number[]>(() => new Array(BARS).fill(0.04))
-  const level = useRef(0)
+  return useReduceMotion() ? <LevelMeter /> : <Bars />
+}
 
-  useEffect(() => window.flow.dictation.onLevel((v) => { level.current = v }), [])
+/**
+ * 15 bars. Lengths come from the level engine (direct style writes). Opacity
+ * rings in from the centre on entry and collapses from the outside on exit,
+ * `stagger.ring` apart, as CSS on tokens so nothing renders per frame.
+ */
+function Bars(): React.JSX.Element {
+  const [present, safeToRemove] = usePresence()
+  const els = useRef<(HTMLSpanElement | null)[]>([])
 
   useEffect(() => {
-    let raf = 0
-    let last = 0
-    const tick = (t: number): void => {
-      // ~24fps keeps the motion readable rather than jittery.
-      if (t - last > 42) {
-        last = t
-        setBars((prev) => {
-          const next = prev.slice(1)
-          next.push(Math.max(0.04, level.current))
-          level.current *= DECAY
-          return next
-        })
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
+    if (!present) return
+    return runLevelEngine(els.current.filter((el): el is HTMLSpanElement => el !== null))
+  }, [present])
+
+  // Exit: the collapse is a CSS transition; leave the DOM when the last ring is done.
+  useEffect(() => {
+    if (present) return
+    const t = setTimeout(() => safeToRemove?.(), DUR_MS.micro + MID * STAGGER.ring * 1000)
+    return () => clearTimeout(t)
+  }, [present, safeToRemove])
 
   return (
-    <div className="wave" aria-hidden>
-      {bars.map((v, i) => (
-        // Animating width rather than scaleX matters: a transform squashes the
-        // border-radius with the element, turning the pill into a rounded
-        // square. Width keeps the caps perfectly round at every length.
-        <span key={i} className="wave__bar" style={{ width: `${DOT + v * (PEAK - DOT)}px` }} />
+    <div className={present ? 'wave' : 'wave wave--out'} aria-hidden>
+      {Array.from({ length: BARS }, (_, i) => (
+        // Width, not scaleX: a transform would squash the round caps with the bar.
+        <span
+          key={i}
+          ref={(el) => { els.current[i] = el }}
+          className="wave__bar"
+          style={{
+            width: LEVEL.floorPx,
+            animationDelay: `${AT.rec.wave + ringOf(i) * STAGGER.ring}s`,
+            transitionDelay: `${(MID - ringOf(i)) * STAGGER.ring}s`
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** Reduce Motion: five segments, lit bottom up, updated at `LEVEL.reducedHz`. No motion. */
+function LevelMeter(): React.JSX.Element {
+  const n = LEVEL.reducedSegments
+  const [lit, setLit] = useState(0)
+  useEffect(() => runLevelSampler((peak) => setLit(Math.min(n, Math.round(peak * n)))), [n])
+  return (
+    <div className="meter" aria-hidden>
+      {Array.from({ length: n }, (_, i) => (
+        <span key={i} className={n - 1 - i < lit ? 'meter__seg meter__seg--on' : 'meter__seg'} />
       ))}
     </div>
   )

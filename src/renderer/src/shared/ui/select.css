@@ -1,0 +1,42 @@
+/* Select: Atoms "Select" (C5tli). A native <select> sits invisibly on top so
+   the OS menu, keyboard and a11y all work. Owner: shared/ui. */
+.q-select {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 200px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);     /* 12 */
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg);
+  -webkit-app-region: no-drag;
+}
+.q-select__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: normal;
+  color: var(--fg);
+}
+.q-select__chev { color: var(--fg-3); }
+.q-select__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+}
+.q-select:focus-within { box-shadow: inset 0 0 0 1px var(--line), 0 0 0 2px var(--focus); }
+.q-select.is-disabled { opacity: 0.5; }
+.q-select.is-disabled .q-select__native { cursor: default; }

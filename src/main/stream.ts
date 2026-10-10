@@ -9,6 +9,22 @@ export type StreamOpts = {
   model: string
   languages: string[]
   noVerbatim: boolean
+  /** OpenAI live models only: how much audio the model waits for before it sends text. */
+  delay?: 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+}
+
+/** What a live transcription stream looks like to the app, whichever provider is behind it. */
+export interface LiveStream {
+  /** The full running text on every update. */
+  onText: ((text: string) => void) | null
+  readonly error: string | null
+  readonly live: boolean
+  open(o: StreamOpts): Promise<boolean>
+  /** A chunk of 16 kHz mono PCM16, base64. */
+  push(b64: string): void
+  /** Commits the utterance and resolves with the transcript, or '' on any failure. */
+  finish(): Promise<string>
+  close(): void
 }
 
 /**
@@ -16,7 +32,7 @@ export type StreamOpts = {
  *
  * The point is to have the audio uploaded by the time the key comes up, so the
  * only latency left is the tail rather than the whole clip. It saves ~400ms of
- * a ~1700ms wait — worth having, but the LLM cleanup afterwards is still the
+ * a ~1700ms wait, worth having, but the LLM cleanup afterwards is still the
  * floor, so this is not the difference between slow and instant.
  *
  * Commit strategy is `manual` rather than `vad`: push-to-talk already knows
@@ -27,7 +43,7 @@ export type StreamOpts = {
  * so a refused connection, a dropped socket or a timeout just falls through to
  * the batch upload and the user sees a slower dictation, not a lost one.
  */
-export class RealtimeStream {
+export class RealtimeStream implements LiveStream {
   private ws: WebSocket | null = null
   private committed: string[] = []
   private lastPartial = ''
@@ -36,6 +52,11 @@ export class RealtimeStream {
   private resolveFinal: ((text: string) => void) | null = null
   /** Chunks captured before the socket finished opening. */
   private pending: string[] = []
+  /**
+   * The full running text (committed + current partial) on every partial and
+   * committed message, so the Flow Bar can show it live (dictation:partial).
+   */
+  onText: ((text: string) => void) | null = null
 
   get error(): string | null {
     return this.failure
@@ -62,7 +83,7 @@ export class RealtimeStream {
       q.set('language_code', langs[0])
       for (const l of langs.slice(1)) q.append('secondary_languages', l)
     }
-    // Drops filler words and false starts. scribe_v2 only — the API rejects it
+    // Drops filler words and false starts. scribe_v2 only, the API rejects it
     // on v1, which would take the whole connection down.
     if (o.noVerbatim && o.model.startsWith('scribe_v2')) q.set('no_verbatim', 'true')
 
@@ -122,11 +143,13 @@ export class RealtimeStream {
         const t = String(m.text ?? '')
         if (t) this.committed.push(t)
         this.lastPartial = ''
+        this.emitText()
         this.resolveFinal?.(this.bestEffort())
         break
       }
       case 'partial_transcript':
         this.lastPartial = String(m.text ?? '')
+        this.emitText()
         break
       case 'error':
       case 'auth_error':
@@ -143,7 +166,7 @@ export class RealtimeStream {
   push(b64: string): void {
     if (!this.live) {
       // Cap the buffer so a socket that never opens cannot grow without bound.
-      if (!this.failure && this.pending.length < 40) this.pending.push(b64)
+      if (!this.failure && this.pending.length < 100) this.pending.push(b64)
       return
     }
     try {
@@ -188,12 +211,18 @@ export class RealtimeStream {
     return (text || this.bestEffort()).trim()
   }
 
+  private emitText(): void {
+    const text = [...this.committed, this.lastPartial].filter(Boolean).join(' ').trim()
+    if (text) this.onText?.(text)
+  }
+
   private bestEffort(): string {
     return (this.committed.join(' ') || this.lastPartial).trim()
   }
 
   close(): void {
     this.resolveFinal = null
+    this.onText = null
     try {
       this.ws?.close()
     } catch {
