@@ -42,7 +42,7 @@ Set `mac.identity` in `electron-builder.yml` to your Developer ID and add
 ## Cutting a release
 
 ```bash
-npm version patch          # or minor / major, bumps package.json
+bun pm version patch   # or minor / major, bumps package.json
 git push --follow-tags
 ```
 
