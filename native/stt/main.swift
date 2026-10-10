@@ -126,9 +126,9 @@ final class MicCapture: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
             onLost()
         }
         let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: AVCaptureSession.runtimeErrorNotification,
+        observers.append(center.addObserver(forName: NSNotification.Name.AVCaptureSessionRuntimeError,
                                             object: session, queue: .main, using: lost))
-        observers.append(center.addObserver(forName: AVCaptureDevice.wasDisconnectedNotification,
+        observers.append(center.addObserver(forName: NSNotification.Name.AVCaptureDeviceWasDisconnected,
                                             object: device, queue: .main, using: lost))
 
         session.startRunning()
