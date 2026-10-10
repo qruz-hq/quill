@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { AnimatePresence, LayoutGroup, m, useIsPresent, type TargetAndTransition, type Transition, type Variants } from 'motion/react'
 import { Icon, AppMark } from '../shared/icons'
 import { Keycap } from '../shared/ui'
+import { holdKeyFor, usePlatform } from '../shared/platform'
 import {
   BLUR, BlurNumber, BlurWords, DIST, DUR, DUR_MS, HOLD, INSTANT_CAP, Indicator, PresenceSwap, SCALE, SPRING, WORD_VARIANTS,
   blurPx, filterBudget, inputModality, isReducedMotion, onWinShown, presets, tween, useExitInert, useReduceMotion,
@@ -100,8 +101,6 @@ const bodyText = (html: string): string => {
   return (d.textContent ?? '').replace(/\s+/g, ' ').trim()
 }
 const NO_FMT: Fmt = { bold: false, italic: false, underline: false, block: '', todo: false }
-/** Hold-key codes to keycap labels (the same set Settings offers). */
-const HOLD_LABEL: Record<number, string> = { 63: 'fn', 54: 'Right ⌘', 61: 'Right ⌥', 62: 'Right ⌃', 60: 'Right ⇧', 57: 'Caps Lock' }
 
 /** Mirrors main/notes.ts: an untitled note takes its name from the body text. */
 const deriveTitle = (body: string): string =>
@@ -128,6 +127,7 @@ export default function Scratchpad(): React.JSX.Element {
   const [words, setWords] = useState(0)
   const [fmt, setFmt] = useState<Fmt>(NO_FMT)
   const [holdKey, setHoldKey] = useState(63)
+  const platform = usePlatform()
   const [transforms, setTransforms] = useState<Transform[] | null>(null)   // open menu when non-null
   const [recording, setRecording] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -453,7 +453,8 @@ export default function Scratchpad(): React.JSX.Element {
     ? notes.filter((n) => (n.title + ' ' + plain(n.body)).toLowerCase().includes(query.toLowerCase()))
     : notes
   const titleValue = titleDraft && titleDraft.id === activeId ? titleDraft.value : active?.title ?? ''
-  const holdLabel = HOLD_LABEL[holdKey]
+  // The hold key in this OS's name (the same set Settings offers); none when it is Off or the system has no hold key.
+  const holdLabel = holdKeyFor(holdKey, platform)?.name
   const listInstant = notes.length > INSTANT_CAP.filter
   const listKey = visible.map((n) => n.id).join()
   /** Selection indicators fly for the pointer and jump for the keyboard. */

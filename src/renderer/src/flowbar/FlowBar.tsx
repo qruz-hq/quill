@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { AnimatePresence, m, useIsPresent, type TargetAndTransition, type Variants } from 'motion/react'
 import { Icon, type IconName } from '../shared/icons'
 import { Keycap } from '../shared/ui/Keycap'
+import { accelKeys, chord, getPlatform, holdKeyFor, usePlatform } from '../shared/platform'
 import {
   BLUR, BlurWords, DUR, DUR_MS, FLOWBAR, HOLD, SCALE, SPRING,
   presets, shapeRect, useBarHitTest, useReduceMotion, type BlurPart, type BlurStreamHandle
@@ -92,6 +93,13 @@ export default function FlowBar(): React.JSX.Element {
   // Hands-free latch (double-tap fn): the pill tooltip reads "Stop · fn" (§4.1.3).
   // A recording that never latches sends nothing, so every new one starts unlatched.
   const [latched, setLatched] = useState(false)
+  // The key that stops a latched recording: the hold key (fn by default on a Mac).
+  const platform = usePlatform()
+  const [holdKey, setHoldKey] = useState<number | undefined>(undefined)
+  const latchKey = holdKeyFor(holdKey, platform)?.name || (platform.os === 'macos' ? 'fn' : 'key')
+  useEffect(() => {
+    if (latched) void window.flow.settings.get().then((p) => setHoldKey(p.holdKey)).catch(() => {})
+  }, [latched])
   useEffect(() => {
     const d = window.flow.dictation
     let live = true
@@ -278,7 +286,7 @@ export default function FlowBar(): React.JSX.Element {
               label={latched ? 'Stop dictation' : 'Cancel dictation'}
             >
               <BlurWords className="fb-tooltip__label" variant="label" animateWidth text={latched ? 'Stop' : 'Cancel'} />
-              <Keycap size="sm" className="fb-key">{latched ? 'fn' : 'esc'}</Keycap>
+              <Keycap size="sm" className="fb-key">{latched ? latchKey : 'esc'}</Keycap>
             </BarTooltip>
           )}
         </AnimatePresence>
@@ -355,14 +363,15 @@ function Capsule({
   open, handoff, pointerOnBar, onDictate
 }: { open: boolean; handoff: boolean; pointerOnBar: boolean; onDictate: () => void }): React.JSX.Element {
   const [hot, setHot] = useState<number | null>(null)
-  const [keys, setKeys] = useState<{ note: string; pad: string }>({ note: '', pad: '' })
+  // `dictate` is the hold key where there is one (fn by default on a Mac), else the toggle shortcut.
+  const [keys, setKeys] = useState<{ note: string; pad: string; dictate: string }>({ note: '', pad: '', dictate: holdCap(undefined) })
 
   // Shortcuts can be rebound in Settings: read them each time the capsule opens.
   useEffect(() => {
     if (!open) { setHot(null); return }
     let live = true
     void window.flow.settings.get().then((p) => {
-      if (live) setKeys({ note: accel(p.noteShortcut), pad: accel(p.padShortcut) })
+      if (live) setKeys({ note: accel(p.noteShortcut), pad: accel(p.padShortcut), dictate: holdCap(p.holdKey) || accel(p.toggleShortcut) })
     })
     return () => { live = false }
   }, [open])
@@ -370,7 +379,7 @@ function Capsule({
   const B = FLOWBAR.buttons
   const actions: BarAction[] = [
     { id: 'language', label: 'Change language', key: '', icon: 'globe', y: B.language, delay: AT.capsule.side, run: () => window.flow.hub.openSettings('languages') },
-    { id: 'dictate', label: 'Dictate', key: 'fn', icon: 'microphone', y: B.dictate, delay: AT.capsule.dictate, primary: true, run: onDictate },
+    { id: 'dictate', label: 'Dictate', key: keys.dictate, icon: 'microphone', y: B.dictate, delay: AT.capsule.dictate, primary: true, run: onDictate },
     { id: 'note', label: 'New note', key: keys.note, icon: 'note-plus', y: B.voiceNote, delay: AT.capsule.side, run: () => void window.flow.dictation.startVoiceNote() },
     { id: 'pad', label: 'Scratchpad', key: keys.pad, icon: 'notepad', y: B.scratchpad, delay: AT.capsule.far, run: () => window.flow.pad.open() }
   ]
@@ -534,7 +543,8 @@ const NOTICE_ICON: Record<FlowNoticeKind, IconName> = {
 /** The design's copy fallback sets the shortcut as a key. Other kinds are plain text. */
 function noticeParts(n: FlowNotice): BlurPart[] {
   if (n.kind !== 'copied') return [n.text]
-  return ['Copied, press', { node: <Keycap size="sm" className="fb-key">⌘ V</Keycap>, text: '⌘V' }, 'to paste']
+  const paste = chord('V', getPlatform().os)
+  return ['Copied, press', { node: <Keycap size="sm" className="fb-key">{paste.cap}</Keycap>, text: paste.text }, 'to paste']
 }
 
 /**
@@ -578,9 +588,16 @@ function NoticePill({ notice, shapeX }: { notice: FlowNotice; shapeX: number }):
 
 /* ---------- bits ---------- */
 
-/** Electron accelerator to keycap text ("Alt+M" becomes "⌥ M"). */
+/** The hold key's cap ("fn", "Right Ctrl"), or '' when it is Off or this system has none. */
+function holdCap(saved: number | undefined): string {
+  return holdKeyFor(saved, getPlatform())?.name ?? ''
+}
+
+/** Electron accelerator to keycap text ("Alt+M" becomes "⌥ M" on a Mac, "Alt+M" elsewhere). */
 function accel(a: string | undefined): string {
   if (!a) return ''
+  const { os } = getPlatform()
+  if (os !== 'macos') return accelKeys(a, os).map((k) => (k.length === 1 ? k.toUpperCase() : k)).join('+')
   const map: Record<string, string> = {
     CommandOrControl: '⌘', CmdOrCtrl: '⌘', Command: '⌘', Cmd: '⌘', Super: '⌘', Meta: '⌘',
     Control: '⌃', Ctrl: '⌃', Alt: '⌥', Option: '⌥', AltGr: '⌥', Shift: '⇧'

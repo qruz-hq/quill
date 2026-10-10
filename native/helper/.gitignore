@@ -1,0 +1,3 @@
+# The whisper.cpp checkout that `bun run helper:build` fetches (see
+# vendor/whisper-rs-sys/PIN): source for a build, not part of this repository.
+vendor/whisper-rs-sys/whisper.cpp/

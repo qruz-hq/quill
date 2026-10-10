@@ -3,7 +3,8 @@ import { AnimatePresence, m, type Variants } from 'motion/react'
 import { Icon } from '../../shared/icons'
 import { Button, Keycap } from '../../shared/ui'
 import { EASE, tokenize, useExitInert, useReduceMotion } from '../../shared/motion'
-import { Keycaps, pretty } from '../settings/shared'
+import { usePlatform } from '../../shared/platform'
+import { Keycaps, pretty as prettyFor } from '../settings/shared'
 import { SpectrumBars } from '../SpectrumBars'
 import { TRY_IT, Trail } from './trail'
 
@@ -29,13 +30,17 @@ const FLUSH_BACKSTOP_MS = 600
 /** Nothing waits on a result longer than this (ms). */
 const RESULT_BACKSTOP_MS = 30_000
 
-export function TryIt({ holdKey, toggle, onMicSettings }: {
+export function TryIt({ holdKey, toggle, typed = true, onMicSettings }: {
   /** The hold-to-talk key's cap ("fn"), or undefined when only the toggle shortcut is set. */
   holdKey?: string
   toggle: string
+  /** False where Quill cannot type into other apps (Wayland): the text is copied instead. */
+  typed?: boolean
   onMicSettings: () => void
 }): React.JSX.Element {
   const reduced = useReduceMotion()
+  const { os } = usePlatform()
+  const pretty = (accel: string): string => prettyFor(accel, os)
   const [view, setView] = useState<View>({ kind: 'prompt' })
   const viewRef = useRef(view)
   viewRef.current = view
@@ -113,7 +118,9 @@ export function TryIt({ holdKey, toggle, onMicSettings }: {
             <p className="ob-try__hint">
               {holdKey
                 ? `Let go and it lands wherever your cursor is. ${pretty(toggle)} starts and stops hands-free.`
-                : 'Press it again and the text lands wherever your cursor is.'}
+                : typed
+                  ? 'Press it again and the text lands wherever your cursor is.'
+                  : 'Press it again and the text is copied, ready to paste.'}
             </p>
           </Stage>
         )}

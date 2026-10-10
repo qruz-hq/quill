@@ -6,7 +6,8 @@ import {
   BLUR, BlurWords, DIST, DUR, EASE, ENTRANCE, PRESET, RealWidth, SCALE, SPRING, STAGGER, WORD_VARIANTS,
   blurPx, filterBudget, isReducedMotion, onWinShown, useExitInert, useReduceMotion, useWindowShown, type SpringToken
 } from '../shared/motion'
-import { HOLD_KEYS, fmtBytes, pretty } from './settings/shared'
+import { has, holdKeyFor, usePlatform, words } from '../shared/platform'
+import { fmtBytes, pretty as prettyFor } from './settings/shared'
 import { TryIt } from './onboarding/TryIt'
 import { Download, GettingReady, useSpeechModel } from './onboarding/speechModel'
 import './onboarding.css'
@@ -122,6 +123,14 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
   onOpenSettings?: (pane: FlowSettingsPane) => void
 }): React.JSX.Element {
   const [perms, setPerms] = useState<FlowPerms | null>(null)
+  const platform = usePlatform()
+  const w = words(platform.os)
+  const pretty = (accel: string): string => prettyFor(accel, platform.os)
+  // Step 2 exists only where the OS has an Accessibility grant (macOS). Without
+  // it the speech model is step 2, and `perms.ax` is always true.
+  const hasAx = has(platform, 'accessibility')
+  // Without `insert` (Wayland) a dictation is copied, never typed.
+  const typed = has(platform, 'insert')
   // The system Accessibility dialog only shows once; after that, open the pane.
   const [axAsked, setAxAsked] = useState(false)
   // Allow was clicked and the macOS prompt is up.
@@ -191,7 +200,7 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
   // Everything is in place: the Done screen can offer Try it.
   const allSet = done && modelOk
   const toggle = toggleShortcut || 'Control+Alt+D'
-  const hold = HOLD_KEYS.find((h) => h.code === holdKey && h.code !== 0)
+  const hold = holdKeyFor(holdKey, platform)
   const live = useRef({ micOk, axOk, modelOk, open })
   live.current = { micOk, axOk, modelOk, open }
   /** Where the flow goes once a step is settled: the first one still open. */
@@ -333,7 +342,8 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
   const header = (
     <header className="ob-tb">
       <div className="ob-tb__left">
-        <div className="ob-tb__lights" aria-hidden><span /><span /><span /></div>
+        {/* The placeholder under the macOS traffic lights; Windows and Linux have their buttons on the right. */}
+        {platform.windowControls === 'left' && <div className="ob-tb__lights" aria-hidden><span /><span /><span /></div>}
         <div className="ob-tb__brand">
           <AppMark size={20} active />
           <span className="ob-tb__wordmark">Quill</span>
@@ -350,6 +360,9 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
     return <div className="ob" role="dialog" aria-modal="true" aria-label={label}>{header}</div>
   }
 
+  const modelStep = hasAx ? 3 : 2
+  // "Both permissions are on." where there are two; the microphone alone elsewhere.
+  const permsOn = hasAx ? 'Both permissions are on.' : 'The microphone is on.'
   const accent: Accent = open === 'mic' ? 'violet' : open === 'ax' ? 'tangerine' : open === 'model' ? 'cyan'
     : done ? 'lime' : micOk ? 'tangerine' : 'violet'
   const stopped = model.state === 'failed' || model.state === 'idle'
@@ -360,11 +373,11 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
   // Done, but the model is still on its way ("Try it · Getting ready").
   const almost = done && !modelOk && open === 'none'
   const micStatus: Status = micOk ? { tone: 'granted', label: 'Allowed', glyph: 'check' }
-    : micWaiting ? { tone: 'checking', label: 'Waiting for macOS…', glyph: 'dot' }
+    : micWaiting ? { tone: 'checking', label: w.waiting, glyph: 'dot' }
       : micAsk ? { tone: 'checking', label: 'Not asked yet', glyph: 'hourglass' }
         : { tone: 'missing', label: 'Turned off', glyph: 'error' }
   const axStatus: Status = axOk ? { tone: 'granted', label: 'Allowed', glyph: 'check' }
-    : axAsked ? { tone: 'checking', label: 'Waiting for macOS…', glyph: 'dot' }
+    : axAsked ? { tone: 'checking', label: w.waiting, glyph: 'dot' }
       : { tone: 'checking', label: 'Not asked yet', glyph: 'hourglass' }
 
   // The entrance plays on first run only; a re-entry renders at rest.
@@ -391,13 +404,13 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
       : { note: 'Allow the microphone to continue.', label: 'Close', variant: 'ghost', act: onDone }
     : axOk
       ? {
-          note: modelOk ? 'All set. Hold the key, speak, let go.'
+          note: modelOk ? (hold ? 'All set. Hold the key, speak, let go.' : `All set. Press ${pretty(toggle)}, speak, press it again.`)
             : stopped ? 'Almost there. The speech model still has to be downloaded.'
               : 'Almost there. The speech model is still downloading.',
           label: 'Done', variant: 'primary', act: onDone
         }
       : open === 'mic'
-        ? { note: 'Microphone allowed.', label: 'Continue', variant: 'primary', act: () => go('ax') }
+        ? { note: 'Microphone allowed.', label: 'Continue', variant: 'primary', act: () => go(nextOpen({ micOk, axOk, modelOk })) }
         : {
             note: `Continue without it: ${pretty(toggle)} still works, and the text is copied for you to paste.`,
             // Skipping step 2 on first run still passes step 3 while the model is on its way.
@@ -423,7 +436,7 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
               initial={!doneAtMount.current}
               hold={!shown}
               delay={headlineDelay}
-              text={allSet ? 'You’re set.' : almost ? 'Almost there.' : 'Three steps, then talk.'}
+              text={allSet ? 'You’re set.' : almost ? 'Almost there.' : hasAx ? 'Three steps, then talk.' : 'Two steps, then talk.'}
             />
             <m.div className="ob-hero__blur" {...(enter ? { variants: blurIn, custom: BLUR.lg, initial: 'initial', animate: stage } : {})}>
               <BlurWords
@@ -432,10 +445,12 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
                 initial={false}
                 className="ob-hero__body"
                 text={allSet
-                  ? `Both permissions are on. Quill sits in the background until you ${hold ? `hold ${hold.key}` : `press ${pretty(toggle)}`}.`
+                  ? `${permsOn} Quill sits in the background until you ${hold ? `hold ${hold.key}` : `press ${pretty(toggle)}`}.`
                   : almost
-                    ? `Both permissions are on. ${stopped ? 'The speech model still has to be downloaded.' : 'The speech model is still downloading.'}`
-                    : 'Quill needs two permissions from macOS and a speech model. This screen updates as each one is ready.'}
+                    ? `${permsOn} ${stopped ? 'The speech model still has to be downloaded.' : 'The speech model is still downloading.'}`
+                    : hasAx
+                      ? 'Quill needs two permissions from macOS and a speech model. This screen updates as each one is ready.'
+                      : 'Quill needs the microphone and a speech model. This screen updates as each one is ready.'}
               />
             </m.div>
           </div>
@@ -450,19 +465,21 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
               stage={stage}
               reduced={reduced}
             />
+            {hasAx && (
+              <TrackerStep
+                i={1}
+                n={2}
+                label="Accessibility"
+                state={axOk ? 'done' : open === 'ax' ? 'now' : 'next'}
+                text={axOk ? 'Allowed' : open === 'ax' ? 'Now' : 'Next'}
+                delay={0}
+                stage={stage}
+                reduced={reduced}
+              />
+            )}
             <TrackerStep
-              i={1}
-              n={2}
-              label="Accessibility"
-              state={axOk ? 'done' : open === 'ax' ? 'now' : 'next'}
-              text={axOk ? 'Allowed' : open === 'ax' ? 'Now' : 'Next'}
-              delay={0}
-              stage={stage}
-              reduced={reduced}
-            />
-            <TrackerStep
-              i={2}
-              n={3}
+              i={hasAx ? 2 : 1}
+              n={modelStep}
               label="Speech model"
               state={modelOk ? 'done' : open === 'model' ? 'now' : 'next'}
               text={modelOk ? 'Ready' : modelStatus.label}
@@ -477,6 +494,7 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
           <StepBox
             boxRef={(el) => { boxes.current.mic = el }}
             n={1}
+            of={modelStep}
             icon="microphone"
             accent="violet"
             open={open === 'mic'}
@@ -491,7 +509,9 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
             body={micOk
               ? 'Quill only listens while you are dictating.'
               : micOff
-                ? 'Turned off for Quill. Switch it on under Privacy & Security › Microphone.'
+                ? platform.os === 'macos' ? 'Turned off for Quill. Switch it on under Privacy & Security › Microphone.'
+                  : platform.os === 'windows' ? `Turned off in Windows. Let desktop apps use the microphone under ${w.micPath}.`
+                    : `The microphone is not available. Check ${w.micPath}.`
                 : `To hear you. Quill only listens while you are dictating${hold ? `: hold ${hold.key}, speak, let go` : ''}.`}
             note={micOff ? 'This screen updates as soon as you switch it on, no relaunch.' : undefined}
             actions={!micOk && (
@@ -500,14 +520,15 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
                 variant={micOff ? 'primary' : 'accent'}
                 disabled={micWaiting}
                 onClick={micOff ? () => openPane('mic') : () => void allowMic()}
-                label={micOff ? 'Open System Settings' : 'Allow microphone'}
+                label={micOff ? w.openSettings : 'Allow microphone'}
               />
             )}
           />
 
-          <StepBox
+          {hasAx && <StepBox
             boxRef={(el) => { boxes.current.ax = el }}
             n={2}
+            of={modelStep}
             icon="accessibility"
             accent="tangerine"
             open={open === 'ax'}
@@ -532,11 +553,12 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
                 <Button variant="ghost" onClick={() => openPane('ax')}>Open System Settings</Button>
               </>
             )}
-          />
+          />}
 
           <StepBox
             boxRef={(el) => { boxes.current.model = el }}
-            n={3}
+            n={modelStep}
+            of={modelStep}
             icon="chip"
             accent="cyan"
             open={open === 'model'}
@@ -551,10 +573,10 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
             reduced={reduced}
             title="Get the speech model"
             body={modelOk
-              ? 'The speech model is on this Mac.'
+              ? `The speech model is on ${w.device}.`
               : model.state === 'failed'
                 ? 'The download stopped. Check your connection.'
-                : `Quill transcribes on this Mac. It needs a speech model first: ${model.name}, ${fmtBytes(model.bytes)}, ${model.multilingual ? 'understands about 99 languages' : 'English only'}.`}
+                : `Quill transcribes on ${w.device}. It needs a speech model first: ${model.name}, ${fmtBytes(model.bytes)}, ${model.multilingual ? 'understands about 99 languages' : 'English only'}.`}
             extra={model.state === 'downloading' ? <Download model={model} className="ob-dl--card" /> : undefined}
             actions={!modelOk && (
               stopped ? (
@@ -588,7 +610,7 @@ export default function Permissions({ firstRun, toggleShortcut, onDone, onOpenSe
                 exit="exit"
               >
                 {modelOk
-                  ? <TryIt holdKey={hold?.key} toggle={toggle} onMicSettings={micSettings} />
+                  ? <TryIt holdKey={hold?.key} toggle={toggle} typed={typed} onMicSettings={micSettings} />
                   : <GettingReady model={model} />}
               </m.section>
             )}
@@ -698,9 +720,12 @@ function PermChip({ status }: { status: Status }): React.JSX.Element {
  * (FalvR) when collapsed. The box keeps its place and trades real height; the
  * two layouts cross-fade inside it.
  */
-function StepBox({ boxRef, n, icon, accent, open, rowTitle, status, ring, pill, progress, onExpand, motion, title, body, note, extra, actions, blurIn, reduced }: {
+function StepBox({ boxRef, n, of, icon, accent, open, rowTitle, status, ring, pill, progress, onExpand, motion, title, body, note, extra, actions, blurIn, reduced }: {
   boxRef: (el: HTMLElement | null) => void
-  n: number; icon: 'microphone' | 'accessibility' | 'chip'; accent: Accent; open: boolean
+  n: number
+  /** How many steps there are here: three on macOS, two where there is no Accessibility grant. */
+  of: number
+  icon: 'microphone' | 'accessibility' | 'chip'; accent: Accent; open: boolean
   rowTitle: string; status: Status
   /** Bumped once per grant made here: one ring on the icon tile. */
   ring: number
@@ -731,7 +756,7 @@ function StepBox({ boxRef, n, icon, accent, open, rowTitle, status, ring, pill, 
               <PermChip status={status} />
             </div>
             <div className="ob-step__text">
-              <span className="ob-step__n">STEP {n} OF {STEPS.length}</span>
+              <span className="ob-step__n">STEP {n} OF {of}</span>
               <h2 className="ob-step__title">{title}</h2>
               <BlurWords as="p" variant="block" initial={false} className="ob-step__body" text={body} />
               {note && <BlurWords as="p" variant="block" initial={false} className="ob-step__note" text={note} />}
@@ -743,7 +768,7 @@ function StepBox({ boxRef, n, icon, accent, open, rowTitle, status, ring, pill, 
           <Swap key="row" className={`ob-row ${onExpand ? 'is-link' : ''}`} variants={reduced ? CUT : rowSwap} onActivate={onExpand}>
             <span className="ob-row__tile"><Icon name={icon} size={20} /></span>
             <div className="ob-row__text">
-              <span className="ob-mono">STEP {n} OF {STEPS.length}</span>
+              <span className="ob-mono">STEP {n} OF {of}</span>
               <span className="ob-row__title">{rowTitle}</span>
             </div>
             {pill ? <Pill className="ob-row__pill">{pill}</Pill> : <PermChip status={status} />}

@@ -7,37 +7,145 @@ on:
 
 jobs:
   build:
-    # Apple silicon runner: the Swift helper and whisper's Metal backend are arm64.
-    runs-on: macos-14
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    # macOS has to build for there to be a release. Windows and Linux are
+    # attached when they build; a failure there is shown on the run and does
+    # not hold the macOS release back.
+    continue-on-error: ${{ !matrix.required }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Apple silicon runner: the Swift helper and whisper's Metal backend are arm64.
+          - { os: macos-14, name: macOS, required: true }
+          - { os: windows-latest, name: Windows, required: false }
+          - { os: ubuntu-22.04, name: Linux, required: false }
+    defaults:
+      run:
+        shell: bash
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: latest }
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/helper
+
+      - name: Linux build packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake build-essential pkg-config clang libclang-dev \
+            libasound2-dev libpulse-dev
+
+      - name: macOS build tools
+        if: runner.os == 'macOS'
+        run: command -v cmake >/dev/null || brew install cmake
+
+      - name: Windows build tools
+        if: runner.os == 'Windows'
+        run: |
+          if [ ! -f "/c/Program Files/LLVM/bin/libclang.dll" ]; then choco install llvm -y --no-progress; fi
+          echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
       - name: Build the Swift speech helper
+        if: runner.os == 'macOS'
         run: bun run stt:build
 
-      - name: Build and publish
+      - name: Build the Rust helper
+        run: bun run helper:build
+
+      - name: Build installers
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Add these secrets to sign and notarise properly. Without them the
-          # build is ad-hoc signed and Gatekeeper will block it on other Macs.
+          # macOS build is ad-hoc signed (Gatekeeper blocks it on other Macs)
+          # and the Windows installer is unsigned (SmartScreen warns).
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
         run: |
           # An unset signing secret arrives as an empty string, and
           # electron-builder treats empty CSC_LINK as a certificate path,
           # failing with "not a file". Absent is fine; empty is not.
-          for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+          for v in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID WIN_CSC_LINK WIN_CSC_KEY_PASSWORD; do
             if [ -z "${!v}" ]; then unset "$v"; fi
           done
-          bun run release
+          # The Apple certificate is for the macOS build only: on Windows
+          # electron-builder would try to sign the installer with it.
+          if [ "$RUNNER_OS" != "macOS" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+          fi
+          # Nothing is uploaded from here: three jobs publishing at once can
+          # each create their own draft. The `draft` job attaches everything.
+          bun scripts/dist.ts --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest*.yml
+
+  draft:
+    name: Draft release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: installers-*
+          merge-multiple: true
+
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls -la dist
+          # A tag push releases that tag. A manual run releases the version in
+          # package.json, as electron-builder used to.
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="v$(node -p "require('./package.json').version")"
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # A re-run adds to its own draft. A release that is already
+            # published is never touched from here.
+            if [ "$(gh release view "$tag" --json isDraft --jq .isDraft)" != "true" ]; then
+              echo "::error::$tag is already published. Bump the version or delete that release first."
+              exit 1
+            fi
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* --draft --title "${tag#v}" --target "$GITHUB_SHA" --generate-notes
+          fi
+          for os in dmg exe AppImage deb; do
+            ls dist/*."$os" >/dev/null 2>&1 || echo "::warning::No .$os in this release: that build failed, see the build jobs."
+          done

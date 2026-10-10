@@ -1,8 +1,7 @@
-import { app, shell, BrowserWindow, ipcMain, screen, clipboard, globalShortcut, Tray, Menu, nativeImage, systemPreferences, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, clipboard, globalShortcut, Tray, Menu, nativeImage, nativeTheme } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, appendFileSync } from 'fs'
-import { userInfo, homedir } from 'os'
-import { execFile } from 'child_process'
+import { userInfo } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { SttEngine, HelperGone, type Final, type HotkeyIntent } from './stt'
 import { ModelStore, type ModelId, RETIRED } from './models'
@@ -19,6 +18,20 @@ import { EdgeDwell } from './edge'
 import { CalendarSync } from './calendar'
 import { Secrets } from './secrets'
 import { checkForUpdate, promptIfNewer } from './updates'
+import * as platform from './platform'
+import { chooseHelper, effectiveHoldKey, type Capabilities, type HelperKind, type HostOS } from './capabilities'
+
+// Chromium switches (Linux: X11) have to be set before the app is ready.
+platform.configureApp()
+
+/*
+ * One Quill per session on Windows and Linux. Closing the hub leaves the app
+ * in the tray, and a desktop without a tray (stock GNOME) has no other way
+ * back to it than starting Quill again: the second start hands over to the
+ * first, which shows its hub. macOS does this by itself through 'activate'.
+ */
+const secondInstance = !platform.isMac && !app.requestSingleInstanceLock()
+if (secondInstance) app.quit()
 
 /* Screenshot calibration: captures were 1372px wide on a 1728pt display (0.794x).
    All sizes below are logical points, converted from the measured originals. */
@@ -185,18 +198,21 @@ function notice(n: Notice): void {
 }
 
 /** A Finder-launched app has no visible stdout, so timings go to a file. */
-const LOG = join(homedir(), 'Library/Logs/Quill-app.log')
+let logPath: string | null = null
 function log(msg: string): void {
   const line = `[${new Date().toISOString()}] ${msg}\n`
-  try { appendFileSync(LOG, line) } catch { /* non-fatal */ }
+  try { appendFileSync((logPath ??= platform.logFile()), line) } catch { /* non-fatal */ }
   console.log(msg)
 }
 
-type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string; holdKey: number; micUid: string; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string; onboarded: boolean }
+type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string; holdKey: number; micUid: string; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string; onboarded: boolean; helper: HelperKind }
 const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json')
+// `helper`: which native helper runs on macOS ('swift' until the Rust one has
+// been tried; QUILL_HELPER overrides it). Windows and Linux always run 'rust'.
+// The shortcut defaults differ per OS, see platform.defaultShortcuts.
 // New installs start on the multilingual Small model, compressed (190 MB); it is
 // downloaded during setup. Existing installs keep whatever they chose.
-const DEFAULTS: Settings = { model: 'small-q5_1', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, launchAtLogin: false, todoEdge: true, calSync: false, calId: '', holdKey: 63, micUid: '', toggleShortcut: 'Control+Alt+D', padShortcut: 'Alt+S', noteShortcut: 'Alt+M', skippedVersion: '', onboarded: false }
+const DEFAULTS: Settings = { model: 'small-q5_1', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, launchAtLogin: false, todoEdge: true, calSync: false, calId: '', holdKey: 63, micUid: '', ...platform.defaultShortcuts, skippedVersion: '', onboarded: false, helper: 'swift' }
 
 function loadSettings(): Settings {
   try {
@@ -268,17 +284,13 @@ function openStream(): { stream: LiveStream; opened: Promise<boolean> } {
  * Permissions. The helper is a child process, so TCC charges its microphone
  * and Accessibility use to Quill itself; asking from here asks for both.
  */
-type MicAccess = 'granted' | 'denied' | 'restricted' | 'not-determined' | 'unknown'
-type Perms = { mic: MicAccess; ax: boolean }
-const PRIVACY_PANE = {
-  mic: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone',
-  ax: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
-}
+type Perms = { mic: platform.MicAccess; ax: boolean }
 let axSeen = false
 
+/** Off macOS there is no Accessibility grant (`ax` is always true) and the microphone is at most a system switch. */
 function permissions(): Perms {
-  const mic = systemPreferences.getMediaAccessStatus('microphone') as MicAccess
-  const ax = systemPreferences.isTrustedAccessibilityClient(false)
+  const mic = platform.micAccess()
+  const ax = platform.accessibilityTrusted()
   // Granted mid-session: have the helper install the hold key now, so the
   // grant works without a relaunch.
   if (ax && !axSeen) stt.checkAccessibility()
@@ -316,22 +328,22 @@ function showPermissions(): void {
   void showHub().then((win) => { if (!win.isDestroyed()) win.webContents.send('perms:show', null) })
 }
 
-const SYM: Record<string, string> = { Control: '⌃', Alt: '⌥', Shift: '⇧', Command: '⌘' }
-const accelLabel = (a: string): string => a.split('+').map((p) => SYM[p] ?? p).join('')
+const accelLabel = platform.accelLabel
 
 let askingMic = false
 
 /**
  * Recording without the microphone grant captures silence and then blames the
  * model, so check first. Undecided asks; refused says where to fix it.
+ * (Undecided only exists on macOS.)
  */
 async function micReady(): Promise<boolean> {
-  const mic = systemPreferences.getMediaAccessStatus('microphone') as MicAccess
+  const mic = platform.micAccess()
   if (mic === 'granted' || mic === 'unknown') return true
   if (mic === 'not-determined') {
     if (askingMic) return false
     askingMic = true
-    const ok = await systemPreferences.askForMediaAccess('microphone').finally(() => { askingMic = false })
+    const ok = await platform.askMicAccess().finally(() => { askingMic = false })
     // The key was released while the dialog was up, so this press is spent;
     // the next one records.
     broadcast('perms:changed', permissions())
@@ -344,39 +356,30 @@ async function micReady(): Promise<boolean> {
 }
 
 /**
- * Typing into another app needs Accessibility. Without it the text goes on
- * the clipboard instead, so a dictation is never lost to a missing grant.
+ * Typing into another app needs a helper that can type here, and on macOS
+ * the Accessibility grant. Without either the text goes on the clipboard
+ * instead, so a dictation is never lost to a missing grant or backend.
  */
 function deliver(text: string): void {
-  if (systemPreferences.isTrustedAccessibilityClient(false)) {
+  const canType = stt.has('insert')
+  if (canType && platform.accessibilityTrusted()) {
     stt.insert(text)
     return
   }
   clipboard.writeText(text)
   notice({
     kind: 'copied',
-    text: 'Copied, press ⌘V to paste',
-    detail: 'Allow Accessibility and Quill types it for you.',
+    text: `Copied, press ${platform.pasteLabel} to paste`,
+    detail: canType
+      ? 'Allow Accessibility and Quill types it for you.'
+      : 'Quill cannot type into other apps on this system yet.',
     holdMs: 4000
   })
 }
 
-/**
- * Name of the frontmost app, for the hub's recent list. lsappinfo needs no
- * permission (unlike asking System Events), and a failure just means no badge.
- */
+/** Name of the frontmost app, for the hub's recent list (macOS only, see platform.frontmostApp). */
 let dictationApp: Promise<string | undefined> = Promise.resolve(undefined)
-function frontmostApp(): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    execFile('/usr/bin/lsappinfo', ['front'], { timeout: 800 }, (err, asn) => {
-      if (err || !asn.trim()) return resolve(undefined)
-      execFile('/usr/bin/lsappinfo', ['info', '-only', 'name', asn.trim()], { timeout: 800 }, (e, out) => {
-        const name = e ? undefined : /="([^"]+)"/.exec(out)?.[1]
-        resolve(name && name !== app.getName() && name !== 'Electron' ? name : undefined)
-      })
-    })
-  })
-}
+const frontmostApp = platform.frontmostApp
 
 async function startDictation(byHotkey = false): Promise<void> {
   if (recording) return
@@ -475,6 +478,25 @@ function announceHelperGone(inPractice?: boolean): void {
   helperGoneAnnounced = true
   setTimeout(() => { helperGoneAnnounced = false }, 1000)
   dictationError(HELPER_GONE, 'mic', inPractice)
+}
+
+/**
+ * The `helper` setting changed (macOS): swap the running helper for the other
+ * one. A recording in progress is dropped first, since its audio lives in the
+ * helper that is about to quit; one being transcribed is waited for. No-op
+ * when QUILL_HELPER decides, or when the wanted helper is already running.
+ */
+function switchHelper(): void {
+  const choice = helperChoice()
+  if (choice.kind === stt.helperKind) return
+  // A dictation still being transcribed lives in the old helper: let it finish.
+  if (processing) { setTimeout(switchHelper, 500); return }
+  if (recording) cancelDictation()
+  // Nothing kept in the old helper can be retried in the new one.
+  lastRun = null
+  log(`[flow] switching to the ${choice.kind} helper`)
+  stt.setHelperKind(choice.kind)
+  broadcast('platform:changed', platformInfo())
 }
 
 /** Unexpected helper exits, to stop respawning one that dies as soon as it starts. */
@@ -679,8 +701,7 @@ function syncEscape(): void {
 function setBarIgnore(ignore: boolean): void {
   if (!barWindow || barWindow.isDestroyed()) return
   barIgnoring = ignore
-  if (ignore) barWindow.setIgnoreMouseEvents(true, { forward: true })
-  else barWindow.setIgnoreMouseEvents(false)
+  platform.ignoreMouse(barWindow, ignore)
 }
 
 /**
@@ -690,6 +711,12 @@ function setBarIgnore(ignore: boolean): void {
  *   sleep, Space change), so re-assert ignore + forward.
  * - Not ignoring, but the cursor is outside the window: the renderer missed
  *   mouseleave, so go back to click-through.
+ *
+ * Linux has no forwarding at all (platform.forwardsMouse), so there this is
+ * not a backstop but the way in: when the cursor reaches the published shape
+ * main opens the window to the mouse, the renderer's own hit test takes over
+ * from the first mouse move, and bar:hit false hands the window back. The
+ * way in is up to one tick (33 ms) later than on the other systems.
  */
 let barPollTicks = 0
 function pollBarCursor(): void {
@@ -698,8 +725,14 @@ function pollBarCursor(): void {
   const p = screen.getCursorScreenPoint()
   const b = w.getBounds()
   const inWindow = p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height
+  const r = barShape
+  const onShape = !!r && inWindow &&
+    p.x >= b.x + r.x && p.x < b.x + r.x + r.width && p.y >= b.y + r.y && p.y < b.y + r.y + r.height
   if (!barIgnoring) {
     barPollTicks = 0
+    // Linux: main opened the window and the renderer never claimed the
+    // pointer (it left the shape without a mouse move reaching the page).
+    if (!platform.forwardsMouse && inWindow && !barHit && !onShape) { setBarIgnore(true); return }
     if (!inWindow) {
       barHit = false
       barEscWanted = false
@@ -711,13 +744,11 @@ function pollBarCursor(): void {
     }
     return
   }
-  const r = barShape
-  const onShape = !!r && inWindow &&
-    p.x >= b.x + r.x && p.x < b.x + r.x + r.width && p.y >= b.y + r.y && p.y < b.y + r.y + r.height
   if (!onShape) { barPollTicks = 0; return }
+  if (!platform.forwardsMouse) { setBarIgnore(false); return }
   // ~200 ms on the shape with no bar:hit true: forwarding is dead, re-assert it.
   if (++barPollTicks === 6) {
-    w.setIgnoreMouseEvents(true, { forward: true })
+    platform.ignoreMouse(w, true)
     log('[bar] click-through forwarding re-asserted')
   }
 }
@@ -741,9 +772,9 @@ function applyShortcuts(): { ok: string[]; failed: string[] } {
   bind(settings.toggleShortcut, () => void (recording ? stopDictation() : startDictation()))
   bind(settings.padShortcut, () => openScratchpad())
   bind(settings.noteShortcut, () => void (recording ? stopDictation() : startVoiceNote()))
-  // ⌥1..⌥9 apply transforms to the last dictation.
+  // ⌥1..⌥9 (Alt+Shift+1..9 on Windows and Linux) apply transforms to the last dictation.
   for (let n = 1; n <= 9; n++) {
-    bind(`Alt+${n}`, () => {
+    bind(`${platform.transformModifier}+${n}`, () => {
       const t = transforms.bySlot(n)
       if (!t || !lastTranscript) return
       const out = transforms.apply(t, lastTranscript)
@@ -764,10 +795,69 @@ function applyShortcuts(): { ok: string[]; failed: string[] } {
   return { ok, failed }
 }
 
-/** Tells the helper how far to drop output volume while recording. */
+/** Tells the helper how far to drop output volume while recording. Off where it cannot duck. */
 function applyDuck(): void {
-  stt.setDuck(settings.duckEnabled ? settings.duckLevel : null)
+  stt.setDuck(settings.duckEnabled && stt.has('duck') ? settings.duckLevel : null)
 }
+
+/**
+ * The hold key the helper is told: the user's, or the nearest one this
+ * helper has (fn only exists on a Mac), or off when it has no hold key.
+ */
+function applyHoldKey(): void {
+  stt.setHoldKey(effectiveHoldKey(settings.holdKey, stt.capabilities))
+}
+
+/** Calendar sync only runs where the helper has a calendar (macOS). */
+function applyCalendar(): void {
+  cal.configure(settings.calSync && stt.has('calendar'), settings.calId)
+}
+
+/** Which helper should run: QUILL_HELPER, then the setting; always Rust off macOS. */
+const helperChoice = (): ReturnType<typeof chooseHelper> => chooseHelper(settings.helper)
+
+/*
+ * window.flow.platform(): what the renderer needs to hide or reword what does
+ * not apply here (calendar sync, the fn key, ducking, the Accessibility step).
+ */
+export type PlatformInfo = {
+  os: HostOS
+  /** Capability ids of the running helper (docs/HELPER-PROTOCOL.md section 11.1). */
+  capabilities: string[]
+  /** Keycodes the hold key can be set to here. Empty: there is no hold key. */
+  holdKeys: number[]
+  /** Free-form detail per capability, e.g. { transcribe: 'metal' }. */
+  notes: Record<string, string>
+  helper: {
+    /** The helper that is running. */
+    kind: HelperKind
+    /** QUILL_HELPER is set, so the `helper` setting is not in effect. */
+    forced: boolean
+    /** The helpers this OS has. One entry: nothing to switch. */
+    choices: HelperKind[]
+    /** Name and version, when the helper reported one. */
+    name?: string
+  }
+  /** Side of the hub title bar the system draws its window buttons on. */
+  windowControls: 'left' | 'right'
+  /** Modifiers of the transform shortcuts: 'Alt' (macOS) or 'Alt+Shift'. */
+  transformModifier: string
+}
+function platformInfo(): PlatformInfo {
+  const caps: Capabilities = stt.capabilities
+  const choice = helperChoice()
+  return {
+    os: platform.os,
+    capabilities: caps.capabilities,
+    holdKeys: caps.holdKeys,
+    notes: caps.notes,
+    helper: { kind: stt.helperKind, forced: choice.forced, choices: choice.choices, name: caps.helper },
+    windowControls: platform.windowControls,
+    transformModifier: platform.transformModifier
+  }
+}
+// Synchronous for the preload, like win:is-shown: registered at load so it always answers.
+ipcMain.on('platform:get', (e) => { e.returnValue = platformInfo() })
 
 function applyModel(): void {
   if (!models.isInstalled(settings.model)) {
@@ -779,24 +869,29 @@ function applyModel(): void {
 }
 
 function buildTray(): void {
-  const img = nativeImage.createFromPath(
-    join(process.resourcesPath, 'icons', 'trayTemplate.png')
-  )
-  img.setTemplateImage(true)
-  tray = new Tray(img.isEmpty() ? nativeImage.createEmpty() : img)
+  const img = platform.trayImage()
+  try {
+    tray = new Tray(img.isEmpty() ? nativeImage.createEmpty() : img)
+  } catch (err) {
+    // Linux without a status notifier host: no tray. Starting Quill again shows the hub.
+    log(`[flow] no tray: ${(err as Error).message}`)
+    return
+  }
   tray.setToolTip('Quill')
+  // Windows and Linux: a click opens the hub (macOS opens the menu, as menu bar items do).
+  if (!platform.isMac) tray.on('click', () => void showHub())
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open Quill', click: () => void showHub() },
     { type: 'separator' },
-    { label: 'Start Dictation', accelerator: 'Ctrl+Alt+D', click: () => void startDictation() },
-    { label: 'New Voice Note', accelerator: 'Alt+M', click: () => void startVoiceNote() },
+    { label: 'Start Dictation', accelerator: settings.toggleShortcut || undefined, click: () => void startDictation() },
+    { label: 'New Voice Note', accelerator: settings.noteShortcut || undefined, click: () => void startVoiceNote() },
     { label: 'Stop Dictation', click: () => void stopDictation() },
     { type: 'separator' },
     { label: 'Check for Updates…', click: () => void promptIfNewer(process.env.FLOW_UPDATE_REPO ?? 'qruz-hq/quill', { force: true }) },
     { type: 'separator' },
     { label: 'Paste last transcript', click: () => { if (lastTranscript) clipboard.writeText(lastTranscript) } },
     { type: 'separator' },
-    { label: 'Quit Quill', accelerator: 'Command+Q', click: () => app.quit() }
+    { label: 'Quit Quill', accelerator: 'CommandOrControl+Q', click: () => app.quit() }
   ]))
 }
 const stt = new SttEngine()
@@ -813,15 +908,10 @@ const elevenKey = new Secrets('elevenlabs', 'ELEVENLABS_API_KEY')
 /* ---- Motion plumbing (docs/MOTION.md §5, §3.6, §6.5) ---- */
 
 /**
- * macOS Reduce Motion, read fresh at every window creation. `shouldRenderRichAnimation`
- * false (e.g. remote sessions) counts as reduce too. Reduce = NO animation at all.
+ * The system's Reduce Motion, read fresh at every window creation (see
+ * platform.reduceMotion). Reduce = NO animation at all.
  */
-function reduceMotion(): boolean {
-  try {
-    const a = systemPreferences.getAnimationSettings()
-    return a.prefersReducedMotion || !a.shouldRenderRichAnimation
-  } catch { return false }
-}
+const reduceMotion = platform.reduceMotion
 
 /**
  * Shared webPreferences. `--reduce-motion=1` lets the preload set
@@ -868,15 +958,14 @@ ipcMain.on('win:is-shown', (e) => {
 let hubFirstShowDone = false
 
 /** $bg per theme, so the hub never flashes the other theme before paint. */
-const hubBg = (): string => (nativeTheme.shouldUseDarkColors ? '#09090C' : '#EFEDE7')
+const hubBg = platform.themeBg
 
 function createHub(): BrowserWindow {
   const win = new BrowserWindow({
     ...HUB,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    // "Traffic Lights" in the hub Title Bar: x 20, 12px lights centred in the 56 bar.
-    trafficLightPosition: { x: 20, y: 22 },
+    // Traffic lights on macOS, caption buttons over the page's own title bar elsewhere.
+    ...platform.hubChrome(),
     // $bg, so the window never flashes another colour before the page paints.
     // Kept in sync with nativeTheme 'updated' (see app.whenReady).
     backgroundColor: hubBg(),
@@ -923,26 +1012,23 @@ function barBounds(): Electron.Rectangle {
 function createFlowBar(): BrowserWindow {
   const win = new BrowserWindow({
     ...barBounds(),
-    frame: false,
-    transparent: true,
-    hasShadow: false,
+    ...platform.floatingChrome({ shadow: false }),
     resizable: false,
     movable: false,
-    skipTaskbar: true,
     focusable: false,          // never steal focus from the app being dictated into
-    alwaysOnTop: true,
     acceptFirstMouse: true,
     // rAF and animations must run while the app is unfocused (the bar's normal case).
     webPreferences: webPrefs({ backgroundThrottling: false })
   })
 
   win.setAlwaysOnTop(true, 'screen-saver')
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  platform.showOnAllWorkspaces(win)
   // Click-through outside the shape: mouse moves are still forwarded to the
-  // renderer, which hit-tests [data-hit] and answers on bar:hit.
+  // renderer, which hit-tests [data-hit] and answers on bar:hit. (Linux
+  // cannot forward: pollBarCursor does the way in there.)
   barIgnoring = true
   barHit = false
-  win.setIgnoreMouseEvents(true, { forward: true })
+  platform.ignoreMouse(win, true)
   // The bar is on screen from creation, so it is "shown" as soon as its page
   // can hear it. A reload gets a re-show.
   let loadedOnce = false
@@ -985,18 +1071,14 @@ function openScratchpad(): void {
     x: workArea.x + workArea.width - PAD.width - 70,
     y: workArea.y + Math.round((workArea.height - PAD.height) / 2),
     show: false,
-    frame: false,
-    transparent: true,
-    hasShadow: true,
+    ...platform.floatingChrome({ shadow: true }),
     resizable: true,
     minWidth: 460,
     minHeight: 320,
-    skipTaskbar: true,
-    alwaysOnTop: true,
     webPreferences: webPrefs({ backgroundThrottling: false })
   })
   const pad = padWindow
-  pad.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  platform.showOnAllWorkspaces(pad)
   pad.once('ready-to-show', () => { pad.show(); pad.focus(); sendShown(pad, true) })
   // Every close (the button, ⌘W, the last tab, a native close) goes through
   // the renderer's exit first. App quit closes at once.
@@ -1074,17 +1156,13 @@ function openTodos(cursor?: { x: number; y: number }): void {
     x: workArea.x + 8,
     y: Math.round(y),
     show: false,
-    frame: false,
-    transparent: true,
-    hasShadow: true,
+    ...platform.floatingChrome({ shadow: true }),
     resizable: false,
-    skipTaskbar: true,
-    alwaysOnTop: true,
     webPreferences: webPrefs({ backgroundThrottling: false })
   })
   const tw = todosWindow
   todosBaseY = Math.round(y)
-  tw.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  platform.showOnAllWorkspaces(tw)
   tw.once('ready-to-show', () => { tw.showInactive(); sendShown(tw, true) })
   tw.on('closed', () => {
     if (todosWindow !== tw) return
@@ -1182,7 +1260,12 @@ function loadRoute(win: BrowserWindow, route: 'hub' | 'flowbar' | 'scratchpad' |
 }
 
 app.whenReady().then(() => {
+  if (secondInstance) return
+  app.on('second-instance', () => void showHub())
   electronApp.setAppUserModelId('studio.saudad.quill')
+  // Windows and Linux: no menu bar. The hub is frameless, so the default menu
+  // would only show up as a strip when Alt is pressed. macOS keeps its app menu.
+  if (!platform.isMac) Menu.setApplicationMenu(null)
   app.on('browser-window-created', (_, w) => optimizer.watchWindowShortcuts(w))
 
   hubWindow = createHub()
@@ -1210,7 +1293,7 @@ app.whenReady().then(() => {
   let lastReduced = reduceMotion()
   ipcMain.handle('motion:reduced', () => reduceMotion())
   try {
-    systemPreferences.subscribeWorkspaceNotification('NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification', () => {
+    platform.watchReduceMotion(() => {
       const v = reduceMotion()
       if (v === lastReduced) return
       lastReduced = v
@@ -1220,7 +1303,7 @@ app.whenReady().then(() => {
 
   /* ---- Hub background follows the theme (no light flash in dark) ---- */
   nativeTheme.on('updated', () => {
-    if (hubWindow && !hubWindow.isDestroyed()) hubWindow.setBackgroundColor(hubBg())
+    if (hubWindow && !hubWindow.isDestroyed()) platform.applyHubTheme(hubWindow)
   })
 
   /* ---- Global shortcut ---- */
@@ -1314,7 +1397,23 @@ app.whenReady().then(() => {
   })
 
   settings = loadSettings()
-  axSeen = systemPreferences.isTrustedAccessibilityClient(false)
+  axSeen = platform.accessibilityTrusted()
+  // Before the first spawn. QUILL_HELPER=rust|swift beats the setting.
+  stt.setHelperKind(helperChoice().kind)
+  log(`[flow] ${platform.os}, helper: ${helperChoice().kind}${helperChoice().forced ? ' (QUILL_HELPER)' : ''}`)
+
+  // What the helper can do arrives just after its boot (the Swift helper
+  // sends nothing and keeps the macOS assumption). Settings that depend on
+  // it were sent on the assumption, so they go again when it differs.
+  stt.on('capabilities', (caps: Capabilities) => {
+    log(`[stt] ${caps.helper ?? 'helper'} on ${caps.platform}: ${caps.capabilities.join(' ')}` +
+        `${caps.holdKeys.length ? ` | hold keys ${caps.holdKeys.join(',')}` : ''}` +
+        `${Object.keys(caps.notes).length ? ` | ${JSON.stringify(caps.notes)}` : ''}`)
+    applyHoldKey()
+    applyDuck()
+    applyCalendar()
+    broadcast('platform:changed', platformInfo())
+  })
 
   // Set this to your repo to enable update checks. Empty disables them.
   const UPDATE_REPO = process.env.FLOW_UPDATE_REPO ?? 'qruz-hq/quill'
@@ -1361,18 +1460,20 @@ app.whenReady().then(() => {
     applyModel()
     stt.setLanguage(settings.languages)
     applyDuck()
-    stt.setHoldKey(settings.holdKey)
+    applyHoldKey()
     stt.setMic(settings.micUid)
     stt.setEngine(settings.sttEngine)
     stt.setStreaming(streamingWanted())
+    // A respawn starts from the assumed capabilities again.
+    broadcast('platform:changed', platformInfo())
   }
   // Start the helper now so the fn event tap is live before first use.
   stt.warmup()
-  app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, openAsHidden: true })
+  platform.setOpenAtLogin(settings.launchAtLogin)
   edge.setEnabled(settings.todoEdge)
   edge.start()
-  cal.configure(settings.calSync, settings.calId)
-  log(`[flow] open at login: want=${settings.launchAtLogin} os=${app.getLoginItemSettings().openAtLogin}`)
+  applyCalendar()
+  log(`[flow] open at login: want=${settings.launchAtLogin} os=${platform.opensAtLogin()}`)
 
   // Cloud transcription: upload the recording, fall back to local on failure so
   // a dropped connection never costs a dictation.
@@ -1493,24 +1594,27 @@ app.whenReady().then(() => {
     const t = todos.list().find((x) => x.id === id)
     todos.remove(id)
     todosChanged()
-    if (t?.eventId) void cal.removeEvent(t.eventId, t.title)
+    if (t?.eventId && stt.has('calendar')) void cal.removeEvent(t.eventId, t.title)
   })
   ipcMain.handle('todos:reorder', (_e, ids: string[]) => { todos.reorder(ids); todosChanged() })
   ipcMain.handle('todos:clearDone', () => {
     const gone = todos.clearDone()
     todosChanged()
-    for (const t of gone) if (t.eventId) void cal.removeEvent(t.eventId, t.title)
+    if (stt.has('calendar')) for (const t of gone) if (t.eventId) void cal.removeEvent(t.eventId, t.title)
     return gone.length
   })
 
   /* ---- Calendar ---- */
-  ipcMain.handle('cal:status', () => cal.status())
-  ipcMain.handle('cal:request', () => cal.requestAccess())
-  ipcMain.handle('cal:calendars', () => cal.calendars())
-  ipcMain.handle('cal:backfill', async () => { const n = await cal.backfill(); todosChanged(); return n })
-  ipcMain.on('cal:openSettings', () => {
-    void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars')
+  // Without the `calendar` capability (Windows, Linux) these answer as an
+  // unknown, empty calendar without asking the helper.
+  ipcMain.handle('cal:status', () => (stt.has('calendar') ? cal.status() : 'unknown'))
+  ipcMain.handle('cal:request', () => (stt.has('calendar') ? cal.requestAccess() : 'unknown'))
+  ipcMain.handle('cal:calendars', () => (stt.has('calendar') ? cal.calendars() : []))
+  ipcMain.handle('cal:backfill', async () => {
+    if (!stt.has('calendar')) return 0
+    const n = await cal.backfill(); todosChanged(); return n
   })
+  ipcMain.on('cal:openSettings', () => platform.openPrivacySettings('calendar'))
   ipcMain.handle('todos:projects', () => todos.projects())
   ipcMain.handle('todos:collapsed', () => todos.collapsedProjects())
   ipcMain.handle('todos:collapse', (_e, project: string, v: boolean) => {
@@ -1629,11 +1733,11 @@ app.whenReady().then(() => {
   ipcMain.handle('perms:status', () => permissions())
   ipcMain.handle('perms:pending', () => { const p = permsPending; permsPending = false; return p })
   ipcMain.handle('perms:requestMic', async () => {
-    // Only prompts while undecided; once refused, only System Settings can change it.
-    if (systemPreferences.getMediaAccessStatus('microphone') === 'not-determined') {
-      await systemPreferences.askForMediaAccess('microphone')
+    // Only prompts while undecided (macOS); once refused, only the system's settings can change it.
+    if (platform.micAccess() === 'not-determined') {
+      await platform.askMicAccess()
     } else {
-      void shell.openExternal(PRIVACY_PANE.mic)
+      platform.openPrivacySettings('mic')
     }
     return permissions()
   })
@@ -1641,11 +1745,11 @@ app.whenReady().then(() => {
     // The system dialog has its own "Open System Settings" button, but only
     // shows while Quill is not yet in the list; after that the screen opens
     // the pane itself through perms:open.
-    systemPreferences.isTrustedAccessibilityClient(true)
+    platform.accessibilityTrusted(true)
     return permissions()
   })
   ipcMain.on('perms:open', (_e, which: 'mic' | 'ax') => {
-    void shell.openExternal(PRIVACY_PANE[which])
+    platform.openPrivacySettings(which)
   })
 
   ipcMain.handle('mic:devices', () => { stt.refreshDevices(); return stt.devices })
@@ -1653,7 +1757,7 @@ app.whenReady().then(() => {
   // Bluetooth headset in its call profile.
   ipcMain.on('mic:test', (_e, on: boolean) => {
     if (!on) { stt.testMic(false); return }
-    const mic = systemPreferences.getMediaAccessStatus('microphone') as MicAccess
+    const mic = platform.micAccess()
     if (recording || (mic !== 'granted' && mic !== 'unknown')) {
       broadcast('mic:test', { state: 'ended' })
       if (!recording) showPermissions()
@@ -1669,15 +1773,12 @@ app.whenReady().then(() => {
     if (patch.model !== undefined) applyModel()
     if (patch.languages !== undefined) stt.setLanguage(patch.languages)
     if (patch.duckEnabled !== undefined || patch.duckLevel !== undefined) applyDuck()
-    if (patch.holdKey !== undefined) stt.setHoldKey(patch.holdKey)
+    if (patch.holdKey !== undefined) applyHoldKey()
     if (patch.micUid !== undefined) stt.setMic(patch.micUid)
-    if (patch.launchAtLogin !== undefined) {
-      app.setLoginItemSettings({ openAtLogin: patch.launchAtLogin, openAsHidden: true })
-    }
+    if (patch.launchAtLogin !== undefined) platform.setOpenAtLogin(patch.launchAtLogin)
     if (patch.todoEdge !== undefined) edge.setEnabled(patch.todoEdge)
-    if (patch.calSync !== undefined || patch.calId !== undefined) {
-      cal.configure(settings.calSync, settings.calId)
-    }
+    if (patch.calSync !== undefined || patch.calId !== undefined) applyCalendar()
+    if (patch.helper !== undefined) switchHelper()
     if (patch.sttEngine !== undefined) stt.setEngine(patch.sttEngine)
     // Provider, key and engine all gate streaming, so re-evaluate on any change.
     stt.setStreaming(streamingWanted())
@@ -1687,6 +1788,8 @@ app.whenReady().then(() => {
     }
     return settings
   })
+
+  ipcMain.handle('platform:info', () => platformInfo())
 
   ipcMain.on('hub:show', () => void showHub())
 

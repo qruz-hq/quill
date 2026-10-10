@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, m, type Variants } from 'motion/react'
 import { Icon } from '../shared/icons'
 import { Bento, Button, IconButton, Keycap, Tile, TileTop } from '../shared/ui'
+import { chord, isMac, transformKeys, transformSlot, usePlatform } from '../shared/platform'
 import { BLUR, BlurNumber, BlurWords, DIST, DUR_MS, SPRING, blurPx, isReducedMotion, presets, tween } from '../shared/motion'
 import TransformDialog from './dialogs/TransformDialog'
 import { SAMPLES, applyTransform, slotAccent, type Transform } from './transformPreview'
@@ -66,6 +67,7 @@ export default function TransformsScreen(): React.JSX.Element {
   const [leaving, setLeaving] = useState<ReadonlySet<string>>(new Set())
   const [flash, setFlash] = useState<{ id: string; n: number } | null>(null)
   const host = useDialogHost<Transform>()
+  const platform = usePlatform()
   const now = useMinuteTick()
   const itemsRef = useRef(items)
   itemsRef.current = items
@@ -175,7 +177,8 @@ export default function TransformsScreen(): React.JSX.Element {
           <BlurWords as="h1" className="tf__headline" variant="titleUnit" initial text="Reshape it after you say it." />
           <div className="tf__shortcut">
             <span className="tf__shortcut-text">Hold</span>
-            <Keycap>⌥ option</Keycap>
+            {/* ⌥ option on a Mac; Alt and Shift, one cap each, elsewhere. */}
+            {transformKeys(platform).caps.map((k) => <Keycap key={k}>{k}</Keycap>)}
             <span className="tf__shortcut-text">and press</span>
             <Keycap>1–9</Keycap>
             <span className="tf__shortcut-text">to rewrite the last thing you dictated.</span>
@@ -262,6 +265,7 @@ export default function TransformsScreen(): React.JSX.Element {
 
 /** "Bottom" of Tile / Last applied (WhXxz): the transform ⌥<n> ran last, from main. */
 function LastApplied({ last, now }: { last: FlowTransformApplied | null; now: number }): React.JSX.Element {
+  const platform = usePlatform()
   const name = last ? last.name : 'Nothing yet'
   const value = useSwapReveal<HTMLSpanElement>(name)
   return (
@@ -269,12 +273,12 @@ function LastApplied({ last, now }: { last: FlowTransformApplied | null; now: nu
       <span ref={value} className="tf__last-value" title={last ? last.name : undefined}>{name}</span>
       <span className="tf__last-caption">
         {last ? (
-          <>⌥{last.slot} · <BlurNumber value={last.uses} size="subtle" /> {last.uses === 1 ? 'time' : 'times'} · {relTime(last.at, now)}</>
-        ) : 'Dictate, then press ⌥ and a number.'}
+          <>{transformSlot(platform, last.slot)} · <BlurNumber value={last.uses} size="subtle" /> {last.uses === 1 ? 'time' : 'times'} · {relTime(last.at, now)}</>
+        ) : isMac(platform) ? 'Dictate, then press ⌥ and a number.' : `Dictate, then press ${transformKeys(platform).caps.join('+')} and a number.`}
       </span>
       <div className="tf__undo">
         <span className="tf__undo-label">Undo with</span>
-        <Keycap className="tf__undo-key">⌘ Z</Keycap>
+        <Keycap className="tf__undo-key">{chord('Z', platform.os).cap}</Keycap>
       </div>
     </div>
   )
@@ -296,6 +300,7 @@ function TransformCard({ t, state, fresh, returning, dep, morphDep, flash, onFla
   onOpen: (from: Element, focus?: HTMLElement | null) => void
   onGone: () => void
 }): React.JSX.Element {
+  const platform = usePlatform()
   const accent = slotAccent(t.slot)
   const preview = applyTransform(t, SAMPLES[t.kind])
   const key = useSwapReveal<HTMLSpanElement>(t.slot)
@@ -329,7 +334,7 @@ function TransformCard({ t, state, fresh, returning, dep, morphDep, flash, onFla
       <Ghost id={morphIdOf(t.id)} dep={morphDep} returning={returning} className="tf__ghost" />
       {flash > 0 && <Highlight key={flash} className="tf__flash" onDone={onFlashed} />}
       <m.div className="tf__card-top" variants={PART}>
-        <span className="tf__key"><span ref={key} className="tf__key-label">⌥ {t.slot}</span></span>
+        <span className="tf__key"><span ref={key} className="tf__key-label">{transformSlot(platform, t.slot, true)}</span></span>
         <IconButton
           icon="ellipsis"
           label={`Edit ${t.name}`}

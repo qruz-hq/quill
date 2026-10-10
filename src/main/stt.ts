@@ -3,9 +3,11 @@ import { EventEmitter } from 'events'
 import { app } from 'electron'
 import { join, dirname } from 'path'
 import { existsSync } from 'fs'
+import { assumed, hostOS, parseCapabilities, type Capabilities, type HelperKind } from './capabilities'
 
 type Msg =
   | { type: 'boot' | 'started' | 'cancelled' | 'transcribing' }
+  | { type: 'capabilities'; [k: string]: unknown }
   | { type: 'start-failed'; message: string }
   | { type: 'inserted'; chars: number }
   | { type: 'ax'; trusted: boolean }
@@ -38,13 +40,14 @@ export class HelperGone extends Error {
   }
 }
 
-/** A CoreAudio input device. `uid` survives reconnects; `id` does not. */
+/** An input device (CoreAudio, WASAPI, PulseAudio). `uid` survives reconnects; `id` does not. */
 export type InputDevice = { id: number; uid: string; name: string; isDefault: boolean }
 
 /**
- * Speech-to-text over the bundled `flow-stt` Swift helper (on-device
- * SFSpeechRecognizer). Engine-agnostic on purpose: swap `binaryPath` for a
- * cloud-backed sidecar and the rest of the app is unchanged.
+ * Speech-to-text over the bundled `flow-stt` helper: the Swift one
+ * (native/stt, macOS only) or the Rust one (native/helper, every OS). Both
+ * speak docs/HELPER-PROTOCOL.md, so nothing outside `binaryPath` knows which
+ * one is running.
  */
 export class SttEngine extends EventEmitter {
   /**
@@ -91,23 +94,95 @@ export class SttEngine extends EventEmitter {
     return this.ready
   }
 
-  private get binaryPath(): string {
-    // Packaged: a plain executable beside the main binary in Contents/MacOS,
-    // so TCC treats the parent app as the permission subject (one grant, under
-    // a name the user recognises). Dev: the standalone bundle.
-    const packaged = join(dirname(process.execPath), 'flow-stt')
-    const devBundle = join('FlowSTT.app', 'Contents', 'MacOS', 'flow-stt')
-    const candidates = [
-      packaged,
-      join(app.getAppPath(), 'resources', devBundle),
-      join(process.cwd(), 'resources', devBundle)
-    ]
-    const found = candidates.find((p) => existsSync(p))
-    if (!found) {
-      console.error('[stt] helper not found. Looked in:', candidates)
-      return candidates[0]
+  /** Which helper the next spawn runs. Windows and Linux only have the Rust one. */
+  private kind: HelperKind = process.platform === 'darwin' ? 'swift' : 'rust'
+  /** The helper that is actually running (the other one, if the chosen binary was missing). */
+  private runningKind: HelperKind = this.kind
+  /**
+   * What the running helper can do. Main's assumption from spawn until the
+   * handshake arrives (the Swift helper never sends one), then the helper's
+   * own word. See capabilities.ts.
+   */
+  private caps: Capabilities = assumed(hostOS())
+
+  get capabilities(): Capabilities {
+    return this.caps
+  }
+
+  /** True when the running helper does this (a capability id from the protocol, section 11.1). */
+  has(id: string): boolean {
+    return this.caps.capabilities.includes(id)
+  }
+
+  /** The helper in use, for Settings and the log. */
+  get helperKind(): HelperKind {
+    return this.proc ? this.runningKind : this.kind
+  }
+
+  /**
+   * Picks the helper before the first spawn, or swaps it later: the running
+   * one is asked to quit and the other starts once it has gone (two helpers
+   * at once would both hear the hold key). The caller ends any recording first.
+   */
+  setHelperKind(kind: HelperKind): void {
+    if (process.platform !== 'darwin') kind = 'rust'
+    if (kind === this.kind) return
+    this.kind = kind
+    const old = this.proc
+    if (!old) return
+    let started = false
+    const next = (): void => {
+      if (started) return
+      started = true
+      // Something else (a dictation) may have spawned the new one already.
+      this.ensureProcess()
     }
-    return found
+    old.once('exit', next)
+    // dispose() kills a stuck helper after 1.5 s; this is the backstop for that.
+    setTimeout(next, 2500).unref()
+    this.dispose()
+  }
+
+  private pathsFor(kind: HelperKind): string[] {
+    const beside = dirname(process.execPath)
+    if (kind === 'swift') {
+      // Packaged: a plain executable beside the main binary in Contents/MacOS,
+      // so TCC treats the parent app as the permission subject (one grant, under
+      // a name the user recognises). Dev: the standalone bundle.
+      const devBundle = join('FlowSTT.app', 'Contents', 'MacOS', 'flow-stt')
+      return [
+        join(beside, 'flow-stt'),
+        join(app.getAppPath(), 'resources', devBundle),
+        join(process.cwd(), 'resources', devBundle)
+      ]
+    }
+    const exe = process.platform === 'win32' ? 'flow-stt.exe' : 'flow-stt'
+    return [
+      // Packaged macOS: beside the main binary, for the same TCC reason, under
+      // its own name so both helpers can ship. Packaged Windows and Linux:
+      // resources/helper (electron-builder extraResources).
+      process.platform === 'darwin' ? join(beside, 'flow-stt-rs') : join(process.resourcesPath, 'helper', exe),
+      // Dev: where `bun run helper:build` puts it.
+      join(app.getAppPath(), 'resources', 'helper', exe),
+      join(process.cwd(), 'resources', 'helper', exe)
+    ]
+  }
+
+  private get binaryPath(): string {
+    const order: HelperKind[] = process.platform === 'darwin'
+      ? [this.kind, this.kind === 'swift' ? 'rust' : 'swift']
+      : ['rust']
+    for (const kind of order) {
+      const found = this.pathsFor(kind).find((p) => existsSync(p))
+      if (!found) continue
+      if (kind !== this.kind) this.emit('log', `the ${this.kind} helper is not installed, running the ${kind} one`)
+      this.runningKind = kind
+      return found
+    }
+    const candidates = this.pathsFor(this.kind)
+    console.error('[stt] helper not found. Looked in:', candidates)
+    this.runningKind = this.kind
+    return candidates[0]
   }
 
   private ensureProcess(): ChildProcessWithoutNullStreams {
@@ -115,7 +190,9 @@ export class SttEngine extends EventEmitter {
 
     const bin = this.binaryPath
     console.log('[stt] spawning', bin)
-    const proc = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] })
+    // windowsHide: the helper is a console program, and without it Windows
+    // opens a console window for every spawn.
+    const proc = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
     // A failed spawn emits 'error'; without this listener Node throws.
     proc.on('error', (err) => this.gone(proc, `spawn failed: ${err.message}`))
     // Writing to a helper that has just died raises EPIPE here; its exit is
@@ -130,6 +207,9 @@ export class SttEngine extends EventEmitter {
     proc.on('exit', (code, signal) => this.gone(proc, `exited (code ${code}, signal ${signal})`))
 
     this.proc = proc
+    // A new process: back to the assumption until it says what it can do.
+    this.caps = assumed(hostOS())
+    this.emit('log', `spawned the ${this.runningKind} helper: ${bin}`)
     this.onSpawn?.()
     return proc
   }
@@ -189,6 +269,11 @@ export class SttEngine extends EventEmitter {
     switch (msg.type) {
       case 'boot':
         this.ready = true
+        break
+      case 'capabilities':
+        // The newest one replaces the previous (section 11.2 rule 4).
+        this.caps = parseCapabilities(msg, hostOS())
+        this.emit('capabilities', this.caps)
         break
       case 'start-failed':
         // The microphone never opened, so nothing is recording.
@@ -371,12 +456,12 @@ export class SttEngine extends EventEmitter {
     this.ensureProcess().stdin.write(`duck ${level === null ? 'off' : level}\n`)
   }
 
-  /** macOS keycode of the hold-to-talk key, or 0 to disable it. */
+  /** macOS virtual keycode of the hold-to-talk key (every OS's helper takes those), or 0 to disable it. */
   setHoldKey(keycode: number): void {
     this.ensureProcess().stdin.write(`holdkey ${keycode > 0 ? keycode : 'off'}\n`)
   }
 
-  /** Pins the microphone by CoreAudio UID; empty follows the system default. */
+  /** Pins the microphone by its `uid` from the device list; empty follows the system default. */
   setMic(uid: string): void {
     this.ensureProcess().stdin.write(`mic ${uid || 'default'}\n`)
   }

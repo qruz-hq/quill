@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Icon, type IconName } from '../../shared/icons'
 import { Keycap } from '../../shared/ui'
 import { BlurWords } from '../../shared/motion'
+import { accelKeys, accelText, usePlatform, words } from '../../shared/platform'
 
 export type Pane = 'shortcuts' | 'general' | 'dictation' | 'languages' | 'models' | 'ai' | 'about'
 
@@ -13,6 +14,8 @@ export type Prefs = {
   sttStreaming: boolean; sttNoVerbatim: boolean
   launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string
   holdKey: number; micUid: string; toggleShortcut: string; padShortcut: string; noteShortcut: string
+  /** Which native helper runs on macOS (Settings, About). */
+  helper?: FlowHelperKind
 }
 
 export type Update = (patch: Partial<Prefs>) => Promise<void>
@@ -34,6 +37,9 @@ export const PANES: { key: Pane; label: string; icon: IconName; accent: Accent; 
 /** "Tile / Pane header": accent tile, mono crumb + 20 icon on top, 40 headline + caption below. */
 export function PaneHeader({ pane }: { pane: Pane }): React.JSX.Element {
   const p = PANES.find((x) => x.key === pane)!
+  const { os } = usePlatform()
+  // The Speech models caption names the machine ("On this Mac, or in the cloud.").
+  const caption = pane === 'models' ? `${words(os).onDevice}, or in the cloud.` : p.caption
   return (
     <header className={`set-head set-accent--${p.accent}`}>
       <div className="set-head__top">
@@ -43,7 +49,7 @@ export function PaneHeader({ pane }: { pane: Pane }): React.JSX.Element {
       <div className="set-head__bottom">
         {/* Plays once per pane: on entering Settings and on every pane switch. */}
         <BlurWords as="h2" variant="titleUnit" initial text={p.label} className="set-head__headline" />
-        <span className="set-head__caption">{p.caption}</span>
+        <span className="set-head__caption">{caption}</span>
       </div>
     </header>
   )
@@ -56,34 +62,18 @@ export function MonoLabel({ children, className }: { children: ReactNode; classN
 
 /* ---- accelerators ---- */
 
-const SYM: Record<string, string> = { Control: 'ctrl', Alt: '⌥', Shift: '⇧', Command: '⌘' }
-/** "Control+Alt+D" -> ["ctrl", "⌥", "D"], one entry per keycap. */
-export function accelKeys(accel: string): string[] {
-  return accel ? accel.split('+').map((p) => SYM[p] ?? p) : []
-}
-/** "Control+Alt+D" -> "ctrl ⌥ D" for running text. */
-export function pretty(accel: string): string {
-  return accelKeys(accel).join(' ')
-}
+/** "Control+Alt+D" for running text: "ctrl ⌥ D" on a Mac, "Ctrl+Alt+D" elsewhere. */
+export const pretty = accelText
 
+/** One keycap per key of an accelerator, in this OS's key names. */
 export function Keycaps({ accel, className }: { accel: string; className?: string }): React.JSX.Element {
+  const { os } = usePlatform()
   return (
     <>
-      {accelKeys(accel).map((k, i) => <Keycap key={i} className={className}>{k}</Keycap>)}
+      {accelKeys(accel, os).map((k, i) => <Keycap key={i} className={className}>{k}</Keycap>)}
     </>
   )
 }
-
-/** Hold-to-talk keys the helper understands (macOS keycodes). */
-export const HOLD_KEYS: { code: number; label: string; key: string; note: string }[] = [
-  { code: 63, label: 'fn (Globe)', key: 'fn',   note: 'The globe key. Its normal action is suppressed while Quill runs.' },
-  { code: 54, label: 'Right ⌘',    key: '⌘',    note: 'Left Command is untouched.' },
-  { code: 61, label: 'Right ⌥',    key: '⌥',    note: 'Left Option is untouched.' },
-  { code: 62, label: 'Right ⌃',    key: 'ctrl', note: 'Left Control is untouched.' },
-  { code: 60, label: 'Right ⇧',    key: '⇧',    note: 'Left Shift is untouched.' },
-  { code: 57, label: 'Caps Lock',  key: '⇪',    note: 'Caps Lock stops toggling case while held.' },
-  { code: 0,  label: 'Off',        key: '',     note: 'Use only the hotkeys.' }
-]
 
 export type ModelRow = {
   id: string; label: string; bytes: number; wer: string; note: string

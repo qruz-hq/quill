@@ -83,3 +83,29 @@
 
 /* "Right": width 260, justifyContent end, alignItems center */
 .tb__right { flex: none; display: flex; justify-content: flex-end; align-items: center; width: 260px; }
+
+/* Windows and Linux: the system draws minimise, maximise and close over the
+   right end of the bar (Window Controls Overlay, src/main/platform.ts). Their
+   width is everything right of env(titlebar-area-x) + env(titlebar-area-width);
+   138 (three 46 px buttons) stands in where the overlay reports nothing. The
+   bar's own 16 px padding already covers part of it, and 8 px of air is kept
+   before the first button.
+   There are no traffic lights to make room for, so the bar is three columns:
+   the two sides share what the nav leaves, equal while there is room (the nav
+   stays centred in the window) and never narrower than their own content, so
+   nothing slides under the buttons at the window's minimum width. */
+:root[data-window-controls='right'] {
+  --tb-controls: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 138px)));
+  --tb-reserve: max(0px, calc(var(--tb-controls) - 16px + 8px));
+}
+:root[data-window-controls='right'] .tb {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  column-gap: 12px;                    /* the nav never touches the picker when the window is narrow */
+}
+:root[data-window-controls='right'] .tb__left { width: auto; }
+:root[data-window-controls='right'] .tb__right {
+  box-sizing: border-box;
+  width: auto;
+  padding-right: var(--tb-reserve);
+}

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref 
 import { AnimatePresence, LayoutGroup, m, type TargetAndTransition, type Variants } from 'motion/react'
 import { Icon, type IconName } from '../../shared/icons'
 import { BlurWords, HOLD, Indicator, RealHeight, SPRING, presets, springToLinear, useExitInert, useReduceMotion } from '../../shared/motion'
+import { usePlatform, words } from '../../shared/platform'
 import { emitPrefs, onPrefs } from './prefsBus'
 import './mic-picker.css'
 
@@ -55,6 +56,7 @@ export default function MicPicker({ micMissing, onSettings }: {
   micMissing: boolean; onSettings: () => void
 }): React.JSX.Element {
   const reduced = useReduceMotion()
+  const w = words(usePlatform().os)
   const [devices, setDevices] = useState<InputDevice[]>([])
   const [rows, setRows] = useState<InputDevice[]>([])
   const [pinned, setPinned] = useState<string | null>(null)
@@ -193,7 +195,7 @@ export default function MicPicker({ micMissing, onSettings }: {
                 <div className="mic-slot">
                   <DeviceRow
                     name="System default"
-                    detail={`Follows macOS${current ? ` · now ${current.name}` : ''}`}
+                    detail={`${w.follows}${current ? ` · now ${current.name}` : ''}`}
                     selected={pinned === ''}
                     pinned={pinned}
                     onPick={() => void choose('')}
@@ -212,7 +214,7 @@ export default function MicPicker({ micMissing, onSettings }: {
                       {() => (
                         <DeviceRow
                           name={r.name}
-                          detail={ghost ? `Not connected · using ${fallback}` : r.isDefault ? 'macOS default input' : 'Connected'}
+                          detail={ghost ? `Not connected · using ${fallback}` : r.isDefault ? `${w.systemDefault} input` : 'Connected'}
                           icon={glyphFor(r.name)}
                           selected={pinned === r.uid}
                           disconnected={ghost}

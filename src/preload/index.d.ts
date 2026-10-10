@@ -1,4 +1,4 @@
-import type { FlowApi, Perms, MicAccess, Notice, NoticeKind, TransformApplied, SettingsPane, CloseRequest, WinShown, PracticeResult } from './index'
+import type { FlowApi, Perms, MicAccess, Notice, NoticeKind, TransformApplied, SettingsPane, CloseRequest, WinShown, PracticeResult, PlatformInfo, HostOS, HelperKind } from './index'
 declare global {
   interface Window { flow: FlowApi }
   type FlowPerms = Perms
@@ -10,4 +10,7 @@ declare global {
   type FlowCloseRequest = CloseRequest
   type FlowWinShown = WinShown
   type FlowPracticeResult = PracticeResult
+  type FlowPlatformInfo = PlatformInfo
+  type FlowHostOS = HostOS
+  type FlowHelperKind = HelperKind
 }

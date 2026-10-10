@@ -2,13 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { Icon, type IconName } from '../../shared/icons'
 import { Button } from '../../shared/ui'
 import { Select } from './controls'
-import { HOLD_KEYS, Keycaps, PaneHeader, type PaneProps } from './shared'
+import { has, holdKeyFor, holdKeyOptions, isWayland, metaAccelerator, usePlatform } from '../../shared/platform'
+import { Keycaps, PaneHeader, type PaneProps } from './shared'
 
 /** Settings, Shortcuts: four tiles in two rows ("Row 1", "Row 2"). */
 export default function ShortcutsPane({ prefs, update }: PaneProps): React.JSX.Element {
   const [failed, setFailed] = useState<string[]>([])
   useEffect(() => window.flow.shortcuts.onFailed(setFailed), [])
-  const hold = HOLD_KEYS.find((h) => h.code === (prefs?.holdKey ?? 63)) ?? HOLD_KEYS[0]
+  const platform = usePlatform()
+  // The keys this OS has, in its own names. Empty: no hold key here at all.
+  const holdKeys = holdKeyOptions(platform)
+  const off = holdKeys.find((h) => h.code === 0)
+  // What the helper is listening for: a saved key that does not exist here
+  // (fn off a Mac) reads as the first one that does, as it does in main.
+  const hold = (prefs?.holdKey ?? 63) > 0 ? holdKeyFor(prefs?.holdKey, platform) ?? off : off
+  const wayland = isWayland(platform)
 
   const bound = (key: 'toggleShortcut' | 'padShortcut' | 'noteShortcut'): React.JSX.Element => (
     <KeyRecorder
@@ -22,17 +30,36 @@ export default function ShortcutsPane({ prefs, update }: PaneProps): React.JSX.E
     <div className="set-pane">
       <PaneHeader pane="shortcuts" />
       <div className="set-row">
-        <ShortcutTile icon="fn-key" title="Hold to talk" desc={`${hold.note} Hold to dictate; double-tap to keep it listening.`}>
-          <Select
-            value={String(prefs?.holdKey ?? 63)}
-            options={HOLD_KEYS.map((h) => ({ value: String(h.code), label: h.label }))}
-            onChange={(v) => void update({ holdKey: Number(v) })}
-            disabled={!prefs}
-            label="Hold-to-talk key"
-            className="set-fill"
-          />
-        </ShortcutTile>
-        <ShortcutTile icon="microphone" title="Start / stop dictation" desc="Works without Accessibility permission.">
+        {hold ? (
+          <ShortcutTile icon="fn-key" title="Hold to talk" desc={`${hold.note} Hold to dictate; double-tap to keep it listening.`}>
+            <Select
+              value={String(hold.code)}
+              options={holdKeys.map((h) => ({ value: String(h.code), label: h.label }))}
+              onChange={(v) => void update({ holdKey: Number(v) })}
+              disabled={!prefs}
+              label="Hold-to-talk key"
+              className="set-fill"
+            />
+          </ShortcutTile>
+        ) : (
+          // No hold key on this system: the tile says so and points at the shortcut beside it.
+          <ShortcutTile
+            icon="fn-key"
+            title="Hold to talk"
+            desc={wayland
+              ? 'On Wayland an app cannot watch the keyboard or type into other windows, so Quill starts and stops with the shortcut and copies the result for you to paste.'
+              : has(platform, 'insert')
+                ? 'There is no hold key on this system. Start and stop dictation with the shortcut instead.'
+                : 'There is no hold key on this system. Start and stop dictation with the shortcut; the result is copied for you to paste.'}
+          >
+            <span className="set-desc">Not available here</span>
+          </ShortcutTile>
+        )}
+        <ShortcutTile
+          icon="microphone"
+          title="Start / stop dictation"
+          desc={has(platform, 'accessibility') ? 'Works without Accessibility permission.' : 'Press once to start, again to stop.'}
+        >
           {bound('toggleShortcut')}
         </ShortcutTile>
       </div>
@@ -72,6 +99,7 @@ function ShortcutTile({ icon, title, desc, children }: {
 function KeyRecorder({ value, failed, onChange }: {
   value: string; failed: boolean; onChange: (v: string) => void
 }): React.JSX.Element {
+  const { os } = usePlatform()
   const [listening, setListening] = useState(false)
   const field = useRef<HTMLDivElement>(null)
   useEffect(() => { if (listening) field.current?.focus() }, [listening])
@@ -86,7 +114,7 @@ function KeyRecorder({ value, failed, onChange }: {
     if (e.ctrlKey) parts.push('Control')
     if (e.altKey) parts.push('Alt')
     if (e.shiftKey) parts.push('Shift')
-    if (e.metaKey) parts.push('Command')
+    if (e.metaKey) parts.push(metaAccelerator(os))   // Command on a Mac, Super (the Win key) elsewhere
     // A bare key would fire constantly while typing, so require a modifier.
     if (!parts.length) return
 

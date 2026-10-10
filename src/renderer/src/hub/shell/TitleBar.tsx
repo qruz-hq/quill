@@ -1,6 +1,7 @@
 import { LayoutGroup, m } from 'motion/react'
 import { Icon, AppMark, type IconName } from '../../shared/icons'
 import { Indicator, presets } from '../../shared/motion'
+import { usePlatform } from '../../shared/platform'
 import MicPicker from './MicPicker'
 import './titlebar.css'
 
@@ -40,13 +41,20 @@ export default function TitleBar({ route, onNavigate, micMissing, onMicSettings 
     )
   }
 
+  // macOS draws its traffic lights on the left, over a placeholder. Windows
+  // and Linux draw minimise, maximise and close on the right, over the bar
+  // (titlebar.css keeps the right end clear), and need no placeholder.
+  const lights = usePlatform().windowControls === 'left'
+
   return (
     <header className="tb">
       <div className="tb__left">
         {/* The native traffic lights draw over this box (trafficLightPosition in main). */}
-        <div className="tb__lights" aria-hidden>
-          <span className="tb__light" /><span className="tb__light" /><span className="tb__light" />
-        </div>
+        {lights && (
+          <div className="tb__lights" aria-hidden>
+            <span className="tb__light" /><span className="tb__light" /><span className="tb__light" />
+          </div>
+        )}
         <div className="tb__brand">
           <AppMark size={20} active className="tb__mark" />
           <span className="tb__wordmark">Quill</span>

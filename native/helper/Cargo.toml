@@ -1,0 +1,166 @@
+# Quill speech helper (Rust). One workspace, two packages:
+#   .            flow-stt     the helper binary: main, platform backends, whisper glue
+#   crates/core  quill-core   protocol, session state machine, DSP, gesture logic (no OS code)
+#
+# Every dependency a capability backend is expected to need is declared here up
+# front, so agents working in parallel never edit this file at the same time.
+# Need one more? Ask in your report instead of adding it.
+
+[workspace]
+members = [".", "crates/core"]
+default-members = [".", "crates/core"]
+resolver = "2"
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.85"
+license = "UNLICENSED"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.23"
+crossbeam-channel = "0.5"
+realfft = "3.5"
+uuid = { version = "1", features = ["v4"] }
+ctrlc = { version = "3.5", features = ["termination"] }
+
+# whisper.cpp at the commit the app's whisper-cli is built from (the published
+# whisper-rs-sys carries 1.8.3 inside it). See vendor/whisper-rs-sys/Cargo.toml.
+[patch.crates-io]
+whisper-rs-sys = { path = "vendor/whisper-rs-sys" }
+
+[package]
+name = "flow-stt"
+description = "Quill's native helper: microphone, whisper, hold key, typing, ducking"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "flow-stt"
+path = "src/main.rs"
+
+[features]
+default = []
+# Local transcription through whisper.cpp (whisper-rs). Off by default so that
+# `cargo check`, the unit tests and cross-target checks never build whisper.cpp
+# (which needs its source fetched, cmake, libclang and a C++ toolchain for the
+# target). The shipped binary is built with it: `bun run helper:build`.
+asr = ["dep:whisper-rs"]
+# Windows and Linux GPU build of the same.
+asr-vulkan = ["asr", "whisper-rs/vulkan"]
+
+[dependencies]
+quill-core = { path = "crates/core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+crossbeam-channel.workspace = true
+uuid.workspace = true
+# Audio capture on every OS (CoreAudio, WASAPI, PulseAudio/PipeWire or ALSA).
+# Pinned: cpal's next release renames stream methods (`play` becomes `start`).
+cpal = "=0.18.2"
+# Lock-free ring between a real-time audio callback and a worker thread.
+rtrb = "0.4"
+# Clipboard for typing. Text only: no image support, no extra system libraries.
+arboard = { version = "3.6", default-features = false }
+
+[dev-dependencies]
+serde_json.workspace = true
+uuid.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# raw-api: the C interface, for the one decoding option the wrapper cannot set
+# (best_of together with a beam search; see src/asr/options.rs).
+whisper-rs = { version = "0.16", optional = true, features = ["metal", "raw-api"] }
+libc = "0.2"
+core-foundation = "0.10"
+core-graphics = "0.25"
+objc2 = "0.6"
+block2 = "0.6"
+dispatch2 = "0.3"
+objc2-foundation = "0.3"
+objc2-app-kit = "0.3"
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-core-audio = "0.3"
+objc2-core-audio-types = "0.3"
+objc2-core-media = "0.3"
+objc2-av-foundation = "0.3"
+objc2-event-kit = "0.3"
+objc2-application-services = "0.3"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+whisper-rs = { version = "0.16", optional = true, features = ["raw-api"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_Devices_Properties",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_Media_KernelStreaming",
+    "Win32_Media_Multimedia",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Console",
+    "Win32_System_DataExchange",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Registry",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_UI_WindowsAndMessaging",
+] }
+# #[implement] for COM callbacks (IMMNotificationClient).
+windows-core = "0.62"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+# PulseAudio host (pure Rust client, also talks to pipewire-pulse): devices get
+# stable names instead of raw ALSA PCM ids. ALSA stays the fallback.
+cpal = { version = "=0.18.2", features = ["pulseaudio"] }
+# X11: XInput2 raw key events, XTest for the paste chord, active window.
+x11rb = { version = "0.14", features = ["xinput", "xtest", "xkb"] }
+# Wayland: keyboards read straight from /dev/input (needs the input group).
+# Not used yet: under Wayland the hold key is reported as unsupported.
+evdev = "0.13"
+# Output volume and hot-plug on PulseAudio and PipeWire (pipewire-pulse): the
+# pure Rust protocol crate cpal's PulseAudio host already brings in, so the
+# helper links no libpulse and starts on machines that do not have it.
+pulseaudio = "0.3"
+# Under Wayland the clipboard goes through the data-control protocol when the
+# compositor has it (wlroots, KDE), through XWayland otherwise.
+arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
+panic = "unwind"
+
+[profile.dev]
+# Whisper and the resampler are unusable unoptimised; keep our own code debuggable.
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

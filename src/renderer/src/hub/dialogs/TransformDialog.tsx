@@ -2,6 +2,7 @@ import { useCallback, useId, useRef, useState } from 'react'
 import { LayoutGroup, m, type Variants } from 'motion/react'
 import { Icon } from '../../shared/icons'
 import { Button, Keycap } from '../../shared/ui'
+import { isMac, transformSlot, usePlatform } from '../../shared/platform'
 import { BlurStream, BlurWords, Indicator, RealHeight, SPRING, presets, tween } from '../../shared/motion'
 import { DialogFrame, EscHint, useDialogSettled, type DialogMotion } from './DialogFrame'
 import { FollowHeight, Press } from '../sniptfMotion'
@@ -89,6 +90,9 @@ export default function TransformDialog({ transform, taken, total, onClose, onSa
   motion?: DialogMotion
 }): React.JSX.Element {
   const [t, setT] = useState(transform)
+  const platform = usePlatform()
+  /** "⌥3" on a Mac, "Alt+Shift+3" elsewhere. */
+  const slotName = (n: number, spaced = false): string => transformSlot(platform, n, spaced)
   const set = (patch: Partial<Transform>): void => setT((x) => ({ ...x, ...patch }))
   const area = useRef<HTMLTextAreaElement>(null)
   const isEdit = !!transform.id
@@ -121,7 +125,7 @@ export default function TransformDialog({ transform, taken, total, onClose, onSa
       lead={
         <div className="tfdlg__shortcut">
           <span className="tfdlg__shortcut-text">Press</span>
-          <Keycap><BlurWords variant="label" text={`⌥ ${t.slot}`} /></Keycap>
+          <Keycap><BlurWords variant="label" text={slotName(t.slot, true)} /></Keycap>
           <span className="tfdlg__shortcut-text">{purpose(t)}</span>
         </div>
       }
@@ -139,7 +143,7 @@ export default function TransformDialog({ transform, taken, total, onClose, onSa
           <Press><Button variant="ghost" onClick={onClose}>Cancel</Button></Press>
           <Press>
             <Button className="dlg__save" disabled={!t.name.trim()} onClick={save}>
-              {isEdit ? 'Save changes' : `Save to ⌥${t.slot}`}
+              {isEdit ? 'Save changes' : `Save to ${slotName(t.slot)}`}
             </Button>
           </Press>
         </div>
@@ -177,9 +181,11 @@ export default function TransformDialog({ transform, taken, total, onClose, onSa
                       aria-checked={state === 'selected'}
                       disabled={state === 'taken'}
                       className={`tfdlg__slot tfdlg__slot--${state}`}
+                      aria-label={slotName(n)}
                       onClick={() => set({ slot: n })}
                     >
-                      ⌥{n}
+                      {/* Nine cells share the row: the full chord fits on a Mac (⌥3); elsewhere the digit, named in the caption. */}
+                      {isMac(platform) ? slotName(n) : n}
                     </button>
                   )
                 })}
@@ -188,8 +194,8 @@ export default function TransformDialog({ transform, taken, total, onClose, onSa
           </div>
           <span className="tfdlg__caption">
             {isEdit
-              ? `Currently on ⌥${transform.slot} · ${free} of ${SLOTS} free`
-              : `⌥${t.slot} is free · ${free} of ${SLOTS} left`}
+              ? `Currently on ${slotName(transform.slot)} · ${free} of ${SLOTS} free`
+              : `${slotName(t.slot)} is free · ${free} of ${SLOTS} left`}
           </span>
         </div>
       </div>

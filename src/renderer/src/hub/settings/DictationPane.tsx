@@ -3,6 +3,7 @@ import { Icon, type IconName } from '../../shared/icons'
 import { Button } from '../../shared/ui'
 import { SpectrumBars } from '../SpectrumBars'
 import { Select, Toggle } from './controls'
+import { has, usePlatform, words } from '../../shared/platform'
 import { MonoLabel, PaneHeader, PROVIDER_NAME, STT_MODELS, type ModelRow, type PaneProps, type Prefs, type Update } from './shared'
 
 type InputDevice = { id: number; uid: string; name: string; isDefault: boolean }
@@ -15,6 +16,9 @@ const glyphFor = (name: string): IconName =>
 
 /** Settings, Dictation: Microphone tile (340) beside a column of tiles. */
 export default function DictationPane({ prefs, update }: PaneProps): React.JSX.Element {
+  const platform = usePlatform()
+  // Without `insert` (Wayland) the result goes to the clipboard, not into the app.
+  const typed = has(platform, 'insert')
   return (
     <div className="set-pane">
       <PaneHeader pane="dictation" />
@@ -32,14 +36,15 @@ export default function DictationPane({ prefs, update }: PaneProps): React.JSX.E
                 <span className="set-stat__value">Verbatim</span>
                 <span className="set-stat__caption">
                   {prefs?.aiEnabled
-                    ? 'Pasted as transcribed, after AI cleanup fixes punctuation and casing.'
-                    : 'Whisper punctuates and drops filler, so text is pasted as transcribed.'}
+                    ? `${typed ? 'Pasted' : 'Copied'} as transcribed, after AI cleanup fixes punctuation and casing.`
+                    : `Whisper punctuates and drops filler, so text is ${typed ? 'pasted' : 'copied'} as transcribed.`}
                 </span>
               </div>
             </section>
           </div>
-          <VolumeTile prefs={prefs} update={update} />
-          <CalendarTile prefs={prefs} update={update} />
+          {/* Each exists only where the helper can do it: no dead switches. */}
+          {has(platform, 'duck') && <VolumeTile prefs={prefs} update={update} />}
+          {has(platform, 'calendar') && <CalendarTile prefs={prefs} update={update} />}
         </div>
       </div>
     </div>
@@ -56,6 +61,7 @@ function MicTile({ prefs, update }: { prefs: Prefs | null; update: Update }): Re
   const [devices, setDevices] = useState<InputDevice[]>([])
   const [testing, setTesting] = useState(false)
   const [testError, setTestError] = useState('')
+  const w = words(usePlatform().os)
   useEffect(() => {
     void window.flow.mic.devices().then(setDevices)
     const offDev = window.flow.mic.onDevices(setDevices)
@@ -82,7 +88,7 @@ function MicTile({ prefs, update }: { prefs: Prefs | null; update: Update }): Re
         <p className="set-desc">
           {pinned
             ? 'Always records from the chosen device when it is connected.'
-            : 'Follows the input chosen in System Settings.'}
+            : w.inputFollows}
         </p>
       </div>
 
@@ -98,7 +104,7 @@ function MicTile({ prefs, update }: { prefs: Prefs | null; update: Update }): Re
       <div className="set-devices" role="radiogroup" aria-label="Microphone">
         <DeviceRow
           name="System default"
-          detail="Follows macOS"
+          detail={w.follows}
           selected={pinned === ''}
           onPick={() => pick('')}
         />
@@ -109,7 +115,7 @@ function MicTile({ prefs, update }: { prefs: Prefs | null; update: Update }): Re
               key={d.uid}
               name={d.name}
               icon={glyphFor(d.name)}
-              detail={`${d.isDefault ? 'macOS default' : 'Connected'}${using ? ' · in use now' : ''}`}
+              detail={`${d.isDefault ? w.systemDefault : 'Connected'}${using ? ' · in use now' : ''}`}
               detailTone={using ? 'success' : undefined}
               selected={pinned === d.uid}
               onPick={() => pick(d.uid)}
@@ -177,6 +183,7 @@ function TranscriptionTile({ prefs }: { prefs: Prefs | null }): React.JSX.Elemen
     return window.flow.models.onList((l) => setModels(l as ModelRow[]))
   }, [])
   const local = models.find((m) => m.id === prefs?.model && m.installed)
+  const w = words(usePlatform().os)
   const cloud = prefs?.sttEngine === 'cloud'
   const provider = PROVIDER_NAME[prefs?.sttProvider ?? 'openai']
   const sttLabel = STT_MODELS[prefs?.sttProvider ?? 'openai'].find((m) => m.value === prefs?.sttModel)?.label.split(' · ')[0] ?? prefs?.sttModel
@@ -188,13 +195,13 @@ function TranscriptionTile({ prefs }: { prefs: Prefs | null }): React.JSX.Elemen
         <Icon name={cloud ? 'cloud' : 'chip'} className="set-ink2" />
       </div>
       <div className="set-stat__bottom">
-        <span className="set-stat__value">{cloud ? 'In the cloud' : 'On this Mac'}</span>
+        <span className="set-stat__value">{cloud ? 'In the cloud' : w.onDevice}</span>
         <span className="set-stat__caption">
           {!prefs ? '…'
             : cloud
-              ? `${provider} ${sttLabel}. ${local ? `${local.label.replace(/\s*\(.*\)$/, '')} runs on this Mac if the upload fails.` : 'No local model to fall back on.'}`
+              ? `${provider} ${sttLabel}. ${local ? `${local.label.replace(/\s*\(.*\)$/, '')} runs on ${w.device} if the upload fails.` : 'No local model to fall back on.'}`
               : local
-                ? `Whisper ${local.label}, running on this Mac. Nothing is sent anywhere.`
+                ? `Whisper ${local.label}, running on ${w.device}. Nothing is sent anywhere.`
                 : 'No model installed yet. Download one under Speech models.'}
         </span>
       </div>

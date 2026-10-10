@@ -1,0 +1,3 @@
+[test]
+# Only the project suites: keeps bun out of the fetched whisper.cpp checkout.
+root = "tests"

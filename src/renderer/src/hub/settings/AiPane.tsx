@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../../shared/icons'
 import { Button, SettingsGroup, SettingsRow } from '../../shared/ui'
 import { Select, Toggle } from './controls'
+import { usePlatform } from '../../shared/platform'
 import { MonoLabel, PaneHeader, type PaneProps } from './shared'
 
 /** Settings, AI cleanup: rows on the left, API key + How it works on the right. */
@@ -9,6 +10,10 @@ export default function AiPane({ prefs, update }: PaneProps): React.JSX.Element 
   const [status, setStatus] = useState<{ hasKey: boolean; masked: string | null }>({ hasKey: false, masked: null })
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
+  const { os } = usePlatform()
+  // Where the key file lives, in this OS's words (Windows has no file modes).
+  const saved = os === 'macos' ? 'Saved to a 0600 file in Application Support.'
+    : os === 'windows' ? 'Saved to a file in your user profile.' : 'Saved to a 0600 file in your config folder.'
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [models, setModels] = useState<string[]>([])
   const [custom, setCustom] = useState(false)
@@ -153,7 +158,7 @@ export default function AiPane({ prefs, update }: PaneProps): React.JSX.Element 
             <p className="set-key__caption">
               {status.hasKey
                 ? 'Stored in a private file, readable only by your user.'
-                : 'Saved to a 0600 file in Application Support. OPENAI_API_KEY is picked up automatically if set.'}
+                : `${saved} OPENAI_API_KEY is picked up automatically if set.`}
             </p>
             <div className="set-key__actions">
               {status.hasKey ? (

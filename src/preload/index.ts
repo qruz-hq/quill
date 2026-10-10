@@ -9,6 +9,53 @@ type Prefs = {
   launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string
   holdKey: number; micUid: string; toggleShortcut: string; padShortcut: string; noteShortcut: string
   onboarded: boolean
+  /**
+   * Which native helper runs on macOS: 'swift' (the default) or 'rust'. Takes
+   * effect at once. Ignored on Windows and Linux (always 'rust') and while
+   * platform().helper.forced is true.
+   */
+  helper: HelperKind
+}
+export type HostOS = 'macos' | 'windows' | 'linux'
+export type HelperKind = 'swift' | 'rust'
+/**
+ * Capability ids of the native helper (docs/HELPER-PROTOCOL.md section 11.1).
+ * The ones a page is likely to ask about: 'hotkey' (the hold key), 'insert'
+ * (typing into other apps), 'accessibility' (the macOS grant and its
+ * onboarding step), 'duck' (lowering the volume while recording), 'calendar'
+ * (calendar sync), 'transcribe' (local whisper), 'partials'.
+ */
+export type Capability = string
+/** platform(). What this OS and its helper can do, so pages can hide or reword the rest. */
+export type PlatformInfo = {
+  os: HostOS
+  capabilities: Capability[]
+  /**
+   * Keycodes the hold key can be set to here (macOS virtual keycodes on every
+   * OS; 63, fn, only on a Mac). Empty: there is no hold key, only the shortcuts.
+   */
+  holdKeys: number[]
+  /** Free-form detail per capability, e.g. { transcribe: 'metal' }. */
+  notes: Record<string, string>
+  helper: {
+    /** The helper that is running. */
+    kind: HelperKind
+    /** QUILL_HELPER is set, so the `helper` setting is not in effect. */
+    forced: boolean
+    /** The helpers this OS has. A single entry means there is nothing to switch. */
+    choices: HelperKind[]
+    /** Name and version, when the helper reported one. */
+    name?: string
+  }
+  /**
+   * Side of the hub title bar the system draws its window buttons on: 'left'
+   * is the macOS traffic lights; 'right' is the Windows and Linux caption
+   * buttons, drawn over the page, so keep content out of
+   * env(titlebar-area-x) + env(titlebar-area-width) .. 100vw.
+   */
+  windowControls: 'left' | 'right'
+  /** Modifiers of the nine transform shortcuts: 'Alt' on macOS, 'Alt+Shift' elsewhere. */
+  transformModifier: string
 }
 type InputDevice = { id: number; uid: string; name: string; isDefault: boolean }
 export type MicAccess = 'granted' | 'denied' | 'restricted' | 'not-determined' | 'unknown'
@@ -69,6 +116,24 @@ let shownState: WinShown | null = null
 try { shownState = (ipcRenderer.sendSync('win:is-shown') as WinShown | null) ?? null } catch { /* not shown yet */ }
 ipcRenderer.on('win:shown', (_e, p: WinShown) => { shownState = p })
 
+/*
+ * What this OS and its helper can do. Read synchronously before any page
+ * script runs, then kept current: the helper reports its capabilities a
+ * moment after it boots, and again after a respawn or a switch of helper.
+ */
+const PLATFORM_FALLBACK: PlatformInfo = {
+  os: process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
+  capabilities: [],
+  holdKeys: [],
+  notes: {},
+  helper: { kind: process.platform === 'darwin' ? 'swift' : 'rust', forced: false, choices: [] },
+  windowControls: process.platform === 'darwin' ? 'left' : 'right',
+  transformModifier: process.platform === 'darwin' ? 'Alt' : 'Alt+Shift'
+}
+let platformState: PlatformInfo = PLATFORM_FALLBACK
+try { platformState = (ipcRenderer.sendSync('platform:get') as PlatformInfo | null) ?? PLATFORM_FALLBACK } catch { /* keep the fallback */ }
+ipcRenderer.on('platform:changed', (_e, p: PlatformInfo) => { platformState = p })
+
 /**
  * A close handshake as seen from the page: main announces the close, the page
  * plays its exit and answers. With no subscriber the preload answers at once,
@@ -89,6 +154,18 @@ const onPadWillClose = closeGate('pad:will-close', 'pad:closed')
 const onTodosWillClose = closeGate('todos:will-close', 'todos:closed')
 
 const api = {
+  /**
+   * Synchronous: the OS and what the native helper can do on it, as last
+   * reported. Use it to hide what does not apply (calendar sync without
+   * 'calendar', the hold key picker without 'hotkey', fn when 63 is not in
+   * holdKeys, ducking without 'duck', the Accessibility step without
+   * 'accessibility'). Subscribe to onPlatform for changes.
+   */
+  platform: (): PlatformInfo => platformState,
+  /** has('calendar') is platform().capabilities.includes('calendar'). */
+  has: (capability: Capability): boolean => platformState.capabilities.includes(capability),
+  /** The capabilities changed: the helper finished booting, restarted, or was switched. */
+  onPlatform: (cb: (p: PlatformInfo) => void) => sub('platform:changed', cb),
   bar: {
     /**
      * Click-through hit test result (useBarHitTest). true makes the window take
@@ -110,9 +187,9 @@ const api = {
   motion: {
     /** Main's Reduce Motion at window creation (also mirrored on html[data-reduce-motion]). */
     reducedAtLaunch: reduceAtLaunch,
-    /** Fresh read of macOS Reduce Motion from main. */
+    /** Fresh read of the system's Reduce Motion from main. */
     reduced: (): Promise<boolean> => ipcRenderer.invoke('motion:reduced'),
-    /** Live changes from main (NSWorkspace accessibility notification). */
+    /** Live changes from main (a notification on macOS, re-read every few seconds elsewhere). */
     onReduced: (cb: (reduced: boolean) => void) => sub('motion:reduced', cb)
   },
   win: {

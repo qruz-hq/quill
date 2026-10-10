@@ -1,0 +1,44 @@
+# Quill's build of whisper.cpp, standing in for the published whisper-rs-sys
+# through [patch.crates-io] in the workspace Cargo.toml.
+#
+# The published crate carries whisper.cpp 1.8.3 inside it. This one builds the
+# commit pinned in PIN (the same source the app's whisper-cli is built from),
+# so both helpers decode with the same library. It keeps the published crate's
+# name, version, `links` key and feature names, because whisper-rs depends on
+# them; the build script is the published one cut down to what Quill ships.
+#
+# The source is not in this repository: `bun run helper:build` fetches it into
+# ./whisper.cpp (see scripts/whisper-src.ts), or set QUILL_WHISPER_CPP_DIR.
+[package]
+name = "whisper-rs-sys"
+version = "0.15.0"
+edition = "2021"
+rust-version = "1.85"
+build = "build.rs"
+links = "whisper"
+license = "Unlicense"
+publish = false
+description = "FFI bindings for whisper.cpp at the commit Quill pins"
+
+[lib]
+name = "whisper_rs_sys"
+path = "src/lib.rs"
+
+[features]
+metal = []
+vulkan = []
+# Named by whisper-rs's own features. Quill builds none of them, and the build
+# script stops with a message if one is switched on.
+coreml = []
+cuda = []
+hipblas = []
+intel-sycl = []
+openblas = []
+openmp = []
+force-debug = []
+
+[build-dependencies]
+bindgen = "0.72"
+cmake = "0.1"
+
+[workspace]

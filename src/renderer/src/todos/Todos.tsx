@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, m, useDragControls, useIsPresent, useMotionValue, type Variants } from 'motion/react'
 import { Icon, type IconName } from '../shared/icons'
 import { Badge, Button } from '../shared/ui'
+import { getPlatform } from '../shared/platform'
 import {
   BLUR, BULK_DIP, BlurNumber, BlurWords, DIST, HOLD, INSTANT_CAP, PresenceSwap, SCALE, SPRING, Z, blurPx, isReducedMotion, onWinShown, presets,
   springPhysics, useExitInert, useWindowShown
@@ -487,7 +488,8 @@ function Composer({ projects }: { projects: Project[] }): React.JSX.Element {
   useEffect(() => { if (openState) titleRef.current?.focus({ preventScroll: true }) }, [openState])
   useEffect(() => {
     if (!openState) return
-    void window.flow.settings.get().then((p) => setCalSync(!!(p as { calSync?: boolean }).calSync))
+    // "On your calendar" only where there is a calendar to sync with.
+    void window.flow.settings.get().then((p) => setCalSync(!!(p as { calSync?: boolean }).calSync && getPlatform().capabilities.includes('calendar')))
   }, [openState])
   useEffect(() => { tokenPop.current = false })
 

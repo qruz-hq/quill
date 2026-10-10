@@ -11,6 +11,7 @@ import {
   AFTER_ROW_MS, AT, Count, EntranceProvider, EntranceTile, MTileTop, fadeAt, heroBlur, useEntrance,
   useEntranceStep, useFirstEntrance, useLagged, usePhase
 } from './dictationMotion'
+import { accelKeys, chord, has, holdKeyFor, usePlatform } from '../shared/platform'
 import { useBanner } from './PermissionBanner'
 import { showToast } from './shell/toastBus'
 import { useSpeechModel } from './onboarding/speechModel'
@@ -25,16 +26,6 @@ type Row = {
   app?: string; flagged?: boolean; failed?: string
 }
 type Live = 'idle' | 'recording' | 'transcribing' | 'polishing'
-
-const HOLD_LABEL: Record<number, string> = {
-  63: 'fn', 54: 'Right ⌘', 61: 'Right ⌥', 62: 'Right ⌃', 60: 'Right ⇧', 57: 'Caps Lock'
-}
-const KEY_SYM: Record<string, string> = {
-  Control: 'ctrl', Ctrl: 'ctrl', Alt: '⌥', Option: '⌥', Shift: '⇧',
-  Command: '⌘', Cmd: '⌘', CommandOrControl: '⌘', CmdOrCtrl: '⌘', Meta: '⌘', Super: '⌘'
-}
-/** "Control+Alt+D" → ["ctrl", "⌥", "D"] */
-const keys = (accel: string): string[] => (accel ? accel.split('+').map((k) => KEY_SYM[k] ?? k) : [])
 
 /* The rows are shorter under a banner (dictation.css). They change height on
    the banner's own spring, so the bento moves as one with it: spring.ui while
@@ -160,8 +151,15 @@ function HeroTile({ perms, prefs, live, onOpenSettings }: {
   const blurBottom = useEntrance(heroBlur)
   const chipIn = useEntrance(CHIP_IN)
   const waveIn = useEntrance(WAVE_IN)
-  const toggle = keys(prefs?.toggleShortcut ?? 'Control+Alt+D').join(' ')
-  const hold = HOLD_LABEL[prefs?.holdKey ?? 63]          // undefined when the hold key is Off
+  const platform = usePlatform()
+  // Shortcut names in this OS's words; the stored default covers the moment before settings arrive.
+  const toggle = accelKeys(prefs?.toggleShortcut ?? (platform.os === 'macos' ? 'Control+Alt+D' : 'Alt+Shift+D'), platform.os)
+    .join(platform.os === 'macos' ? ' ' : '+')
+  // undefined when the hold key is Off, or when this system has none (Wayland)
+  const hold = holdKeyFor(prefs?.holdKey, platform)?.name
+  // Without `insert` a dictation is copied to the clipboard, never typed.
+  const typed = has(platform, 'insert')
+  const paste = chord('V', platform.os).cap
   const micOff = !!perms && perms.mic !== 'granted' && perms.mic !== 'unknown'
   const axOff = !!perms && !perms.ax
 
@@ -175,13 +173,13 @@ function HeroTile({ perms, prefs, live, onOpenSettings }: {
       tone: 'ax',
       chip: axOff ? `Hold key off · ${toggle} works` : `Ready · ${toggle} to start`,
       lead: 'Use', key: toggle, tail: 'to talk.',
-      hint: axOff ? 'Text is copied: paste it with ⌘ V' : 'Press it again to stop and paste where your cursor is',
+      hint: axOff || !typed ? `Text is copied: paste it with ${paste}` : 'Press it again to stop and paste where your cursor is',
       wave: true
     }
   } else {
     h = {
       tone: 'ready', chip: `Ready · listening for ${hold}`, lead: 'Hold', key: hold, tail: 'to talk.',
-      hint: `Release to paste where your cursor is · ${toggle} for hands-free`, wave: true
+      hint: typed ? `Release to paste where your cursor is · ${toggle} for hands-free` : `Release to copy the text · ${toggle} for hands-free`, wave: true
     }
   }
   // No speech model yet (setup was left while it downloads, or it was removed):
@@ -596,6 +594,7 @@ function RecentRow({ row, index, fresh, canRetry, onDelete, onChange }: {
 
 /* ---- Tile / Scratchpad (tCsVi → cXqXD) ---- */
 function ScratchpadTile({ shortcut }: { shortcut: string }): React.JSX.Element {
+  const { os } = usePlatform()
   const open = (): void => window.flow.pad.open()
   return (
     <EntranceTile
@@ -616,7 +615,7 @@ function ScratchpadTile({ shortcut }: { shortcut: string }): React.JSX.Element {
         <span className="dict-pad__title">Open Scratchpad</span>
         {shortcut && (
           <span className="dict-pad__shortcut">
-            {keys(shortcut).map((k, i) => <Keycap key={i}>{k}</Keycap>)}
+            {accelKeys(shortcut, os).map((k, i) => <Keycap key={i}>{k}</Keycap>)}
           </span>
         )}
       </div>

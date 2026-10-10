@@ -6,17 +6,23 @@ directories:
 files:
   - out/**/*
   - package.json
+# The deb needs a project page, and package.json has none.
+extraMetadata:
+  homepage: https://github.com/qruz-hq/quill
+
+# Every OS. Each OS section below adds its own native helper: electron-builder
+# appends a platform's extraResources and extraFiles to these.
 extraResources:
   - from: resources/icons
     to: icons
-  - from: resources/whisper
-    to: whisper
-extraFiles:
-  # Plain executable inside Contents/MacOS, NOT a nested .app: this makes the
-  # main app the TCC subject, so Microphone/Speech/Accessibility are all
-  # granted once, to "Quill".
-  - from: resources/FlowSTT.app/Contents/MacOS/flow-stt
-    to: MacOS/flow-stt
+  # The tray icon on Windows and Linux (macOS uses the template image above),
+  # and the window icon on Linux.
+  - from: build/icon.png
+    to: icons/icon.png
+
+# Build each OS on that OS: `bun run dist` (scripts/dist.ts). The native helper
+# is built first with `bun run helper:build`, and on macOS `bun run stt:build`.
+
 mac:
   icon: build/icon.icns
   category: public.app-category.productivity
@@ -26,6 +32,21 @@ mac:
       arch: arm64
     - target: zip
       arch: arm64
+  extraResources:
+    # whisper-cli and its dylibs, which the Swift helper runs. The Rust helper
+    # has whisper.cpp linked in and needs none of it.
+    - from: resources/whisper
+      to: whisper
+  extraFiles:
+    # Plain executables inside Contents/MacOS, NOT a nested .app: this makes the
+    # main app the TCC subject, so Microphone/Speech/Accessibility are all
+    # granted once, to "Quill".
+    # Both helpers ship. Main runs the Swift one unless the `helper` setting or
+    # QUILL_HELPER=rust picks the Rust one (src/main/capabilities.ts).
+    - from: resources/FlowSTT.app/Contents/MacOS/flow-stt
+      to: MacOS/flow-stt
+    - from: resources/helper/flow-stt
+      to: MacOS/flow-stt-rs
   # Ad-hoc. Without a Developer ID the app is still Gatekeeper-blocked on other
   # Macs, but ad-hoc at least keeps it launchable once quarantine is cleared.
   identity: "-"
@@ -39,10 +60,6 @@ mac:
     NSCalendarsFullAccessUsageDescription: Quill adds your dated todos to Calendar and keeps them in step when you edit or finish them.
     LSUIElement: false
 
-publish:
-  provider: github
-  # owner/repo are read from the git remote when publishing
-
 dmg:
   title: "${productName} ${version}"
   contents:
@@ -53,3 +70,70 @@ dmg:
       y: 180
       type: link
       path: /Applications
+
+win:
+  # icon.png is 1024 px; electron-builder makes the .ico from it.
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: x64
+  extraResources:
+    # The Rust helper, with whisper.cpp and the C runtime linked in statically:
+    # one file, no DLLs beside it and no Visual C++ redistributable to install.
+    - from: resources/helper/flow-stt.exe
+      to: helper/flow-stt.exe
+  # Unsigned unless CSC_LINK / CSC_KEY_PASSWORD hold a Windows certificate.
+  # SmartScreen warns about an unsigned installer ("More info", "Run anyway").
+
+nsis:
+  # A plain per-user install: no elevation prompt, no wizard pages.
+  oneClick: true
+  perMachine: false
+  artifactName: "${productName}-${version}-${arch}-setup.${ext}"
+  shortcutName: Quill
+
+linux:
+  icon: build/icon.png
+  category: Utility
+  executableName: quill
+  synopsis: Local-first dictation
+  description: Hold a key, speak, and Quill types what you said into the app you are using. Transcription runs on your own machine.
+  # Shown as the deb's Maintainer field. Change it to a real contact.
+  maintainer: Quill <qruz-hq@users.noreply.github.com>
+  target:
+    - target: AppImage
+      arch: x64
+    - target: deb
+      arch: x64
+  extraResources:
+    # The Rust helper with whisper.cpp linked in. It loads libasound, libpulse
+    # and libstdc++ from the system (see deb.depends).
+    - from: resources/helper/flow-stt
+      to: helper/flow-stt
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+
+deb:
+  # electron-builder's own defaults for Electron, plus what the helper links:
+  # ALSA and PulseAudio (PipeWire provides the latter through pipewire-pulse).
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libasound2
+    - libpulse0
+  recommends:
+    # The tray icon on GNOME and other desktops without a classic tray.
+    - libayatana-appindicator3-1
+  # The AppImage carries no dependencies of its own for the helper: it expects
+  # libasound.so.2 and libpulse.so.0 on the system, which every desktop
+  # distribution with sound has.
+
+publish:
+  provider: github
+  # owner/repo are read from the git remote when publishing

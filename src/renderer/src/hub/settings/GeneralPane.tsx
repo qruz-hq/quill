@@ -3,12 +3,17 @@ import { Icon } from '../../shared/icons'
 import { Button, SettingsGroup, SettingsRow, StatusChip } from '../../shared/ui'
 import { Toggle } from './controls'
 import Permissions from '../Permissions'
+import { has, usePlatform } from '../../shared/platform'
 import { MonoLabel, PaneHeader, type Pane, type PaneProps } from './shared'
 
 /** Settings, General: rows, then the Permissions tile beside the cyan Todo edge tile. */
 export default function GeneralPane({ prefs, update, onPane }: PaneProps & { onPane: (p: Pane) => void }): React.JSX.Element {
   const [perms, setPerms] = useState<FlowPerms | null>(null)
   const [review, setReview] = useState(false)
+  const platform = usePlatform()
+  // Only macOS has an Accessibility grant; elsewhere the microphone is the one thing to allow.
+  const hasAx = has(platform, 'accessibility')
+  const holdKey = has(platform, 'hotkey')
 
   useEffect(() => {
     const poll = (): void => void window.flow.perms.status().then(setPerms)
@@ -37,7 +42,7 @@ export default function GeneralPane({ prefs, update, onPane }: PaneProps & { onP
         >
           <Toggle label="Todos on the left edge" on={edgeOn} disabled={!prefs} onChange={(v) => void update({ todoEdge: v })} />
         </SettingsRow>
-        <SettingsRow title="Shortcuts" desc="Hold-to-talk and the global hotkeys are configured under Shortcuts.">
+        <SettingsRow title="Shortcuts" desc={holdKey ? 'Hold-to-talk and the global hotkeys are configured under Shortcuts.' : 'The global hotkeys are configured under Shortcuts.'}>
           <button type="button" className="q-pill" onClick={() => onPane('shortcuts')}>See Shortcuts</button>
         </SettingsRow>
       </SettingsGroup>
@@ -49,7 +54,11 @@ export default function GeneralPane({ prefs, update, onPane }: PaneProps & { onP
               <h3 className="set-title3">Permissions</h3>
               <Button variant="ghost" className="set-btn32" onClick={() => setReview(true)}>Review</Button>
             </div>
-            <p className="set-desc">Quill needs two permissions from macOS. This updates as soon as you grant them.</p>
+            <p className="set-desc">
+              {hasAx ? 'Quill needs two permissions from macOS. This updates as soon as you grant them.'
+                : platform.os === 'windows' ? 'Quill needs the microphone. This updates as soon as Windows allows it.'
+                  : 'Quill needs the microphone. Nothing guards it on this system, so there is nothing to grant.'}
+            </p>
           </div>
           <div className="set-perms__list">
             <div className="set-perm">
@@ -60,13 +69,15 @@ export default function GeneralPane({ prefs, update, onPane }: PaneProps & { onP
                   : perms.mic === 'not-determined' ? <StatusChip tone="checking">Not asked yet</StatusChip>
                     : <StatusChip tone="missing">Not allowed</StatusChip>}
             </div>
-            <div className="set-perm">
-              <Icon name="accessibility" className="set-perm__icon" />
-              <span className="set-perm__label">Accessibility</span>
-              {!perms ? <StatusChip tone="checking">Checking…</StatusChip>
-                : perms.ax ? <StatusChip tone="granted">Allowed</StatusChip>
-                  : <StatusChip tone="missing">Not allowed</StatusChip>}
-            </div>
+            {hasAx && (
+              <div className="set-perm">
+                <Icon name="accessibility" className="set-perm__icon" />
+                <span className="set-perm__label">Accessibility</span>
+                {!perms ? <StatusChip tone="checking">Checking…</StatusChip>
+                  : perms.ax ? <StatusChip tone="granted">Allowed</StatusChip>
+                    : <StatusChip tone="missing">Not allowed</StatusChip>}
+              </div>
+            )}
           </div>
         </section>
 

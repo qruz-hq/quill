@@ -3,6 +3,7 @@ import { BlurWords } from '../../shared/motion'
 import { Icon } from '../../shared/icons'
 import { Button, IconButton, Pill, SettingsGroup, SettingsRow } from '../../shared/ui'
 import { Select, Toggle } from './controls'
+import { usePlatform, words } from '../../shared/platform'
 import {
   LIVE_BATCH_FALLBACK, MonoLabel, PaneHeader, PROVIDER_NAME, STT_MODELS, fmtBytes, streamKind,
   type ModelRow, type PaneProps, type Prefs
@@ -46,6 +47,7 @@ export default function ModelsPane({ prefs, update }: PaneProps): React.JSX.Elem
     finally { clearProgress(id) }
   }
 
+  const w = words(usePlatform().os)
   const cloud = prefs?.sttEngine === 'cloud'
   const provider = prefs?.sttProvider ?? 'openai'
   const installed = list.filter((m) => m.installed)
@@ -70,7 +72,7 @@ export default function ModelsPane({ prefs, update }: PaneProps): React.JSX.Elem
               <EngineOption
                 on={!cloud}
                 icon="chip"
-                title="On this Mac"
+                title={w.onDevice}
                 desc="Runs Whisper locally. Nothing is sent anywhere."
                 onPick={() => void update({ sttEngine: 'local' })}
               />
@@ -253,7 +255,7 @@ export default function ModelsPane({ prefs, update }: PaneProps): React.JSX.Elem
               })}
             </div>
             <p className={`set-note ${error ? 'is-error' : ''}`}>
-              {error ? `Download failed: ${error}` : 'Models are downloaded only when you choose them, and stay on this Mac.'}
+              {error ? `Download failed: ${error}` : `Models are downloaded only when you choose them, and stay on ${w.device}.`}
             </p>
           </section>
         )}
@@ -281,6 +283,10 @@ function EngineOption({ on, icon, title, desc, onPick }: {
 function CloudTile({ prefs }: { prefs: Prefs | null }): React.JSX.Element {
   const provider = prefs?.sttProvider ?? 'openai'
   const name = PROVIDER_NAME[provider]
+  const { os } = usePlatform()
+  const w = words(os)
+  // Windows has no file modes: the key sits in the user's own profile there.
+  const saved = os === 'windows' ? 'Saved to a file in your user profile.' : 'Saved to a 0600 file.'
   return (
     <section className="set-tile set-models">
       <div className="set-models__head set-models__head--26">
@@ -292,7 +298,7 @@ function CloudTile({ prefs }: { prefs: Prefs | null }): React.JSX.Element {
           variant="block"
           initial={false}
           className="set-notice__msg set-notice__msg--400"
-          text={`Your audio is sent to ${name}. If the upload fails, Quill falls back to a model on this Mac.`}
+          text={`Your audio is sent to ${name}. If the upload fails, Quill falls back to a model on ${w.device}.`}
         />
       </div>
       {provider === 'elevenlabs' ? (
@@ -304,7 +310,7 @@ function CloudTile({ prefs }: { prefs: Prefs | null }): React.JSX.Element {
           clear={() => window.flow.eleven.clearKey()}
           note={(has) => has
             ? 'Stored in a private file, readable only by your user.'
-            : 'Saved to a 0600 file. ELEVENLABS_API_KEY is picked up automatically if set.'}
+            : `${saved} ELEVENLABS_API_KEY is picked up automatically if set.`}
         />
       ) : (
         <KeyField
@@ -322,7 +328,7 @@ function CloudTile({ prefs }: { prefs: Prefs | null }): React.JSX.Element {
         <span className="set-icon40 set-icon40--pink"><Icon name="chip" size={20} /></span>
         <div className="set-empty__text">
           <span className="set-title">Local models are hidden</span>
-          <span className="set-empty__desc">Pick On this Mac to download or change a model.</span>
+          <span className="set-empty__desc">Pick {w.onDevice} to download or change a model.</span>
         </div>
       </div>
     </section>

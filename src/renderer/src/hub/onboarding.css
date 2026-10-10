@@ -59,6 +59,14 @@
 }
 /* "Right": width 260, justifyContent end, center */
 .ob-tb__right { flex: none; display: flex; justify-content: flex-end; align-items: center; width: 260px; }
+/* Windows and Linux: the label stays clear of the system's window buttons
+   (--tb-reserve, shell/titlebar.css). */
+:root[data-window-controls='right'] .ob-tb__right {
+  box-sizing: border-box;
+  width: auto;
+  min-width: max-content;
+  padding-right: var(--tb-reserve);
+}
 
 /* "Bento": horizontal, gap $bento-gap, padding 4 16 16 16 */
 .ob-bento {

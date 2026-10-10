@@ -1,25 +1,33 @@
 import { Fragment, useEffect, useState } from 'react'
 import { AppMark } from '../../shared/icons'
-import { Button, Pill } from '../../shared/ui'
+import { Button, Pill, SettingsGroup, SettingsRow } from '../../shared/ui'
+import { decoder, isMac, usePlatform, words } from '../../shared/platform'
+import { Toggle } from './controls'
 import { LANGUAGES } from '../languages'
 import { MonoLabel, PaneHeader, PROVIDER_NAME, STT_MODELS, streamKind, type ModelRow, type PaneProps } from './shared'
 
 type UpdateState = { current: string; latest?: string; newer: boolean }
 
 /** Settings, About: lime Version tile beside the Speech recognition spec list. */
-export default function AboutPane({ prefs, updates, onUpdates }: PaneProps & {
+export default function AboutPane({ prefs, update, updates, onUpdates }: PaneProps & {
   updates: UpdateState | null; onUpdates: (u: UpdateState) => void
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [models, setModels] = useState<ModelRow[]>([])
   const [ai, setAi] = useState(false)
+  const platform = usePlatform()
+  const gpu = decoder(platform)
+  // Both helpers exist on a Mac only; QUILL_HELPER in the environment overrides the setting.
+  const helper = platform.helper
+  const canSwitch = isMac(platform) && helper.choices.includes('swift') && helper.choices.includes('rust')
+  const wantsRust = (prefs?.helper ?? helper.kind) === 'rust'
   useEffect(() => { void window.flow.models.list().then((l) => setModels(l as ModelRow[])) }, [])
   useEffect(() => { void window.flow.cleanup.status().then((s) => setAi(s.hasKey)) }, [])
 
   const cloud = prefs?.sttEngine === 'cloud'
   const provider = prefs?.sttProvider ?? 'openai'
   const local = models.find((m) => m.id === prefs?.model)
-  const localSpec = local?.installed ? `${prefs?.model} · Metal` : 'None installed'
+  const localSpec = local?.installed ? `${prefs?.model} · ${gpu}` : 'None installed'
   const langs = prefs?.languages.includes('auto')
     ? 'Auto-detect'
     : (prefs?.languages ?? []).map((c) => LANGUAGES.find((l) => l.code === c)?.name ?? c).join(', ')
@@ -29,7 +37,7 @@ export default function AboutPane({ prefs, updates, onUpdates }: PaneProps & {
     ? [
         ['Provider', PROVIDER_NAME[provider]],
         ['Model', STT_MODELS[provider].find((m) => m.value === prefs?.sttModel)?.label.split(' · ')[0] ?? prefs?.sttModel ?? 'Not set'],
-        ['Fallback on this Mac', localSpec],
+        [`Fallback on ${words(platform.os).device}`, localSpec],
         ['Languages', langs],
         ...(stream !== 'none'
           ? [['Streaming', !prefs?.sttStreaming ? 'Off'
@@ -40,7 +48,7 @@ export default function AboutPane({ prefs, updates, onUpdates }: PaneProps & {
     : [
         ['Engine', 'whisper.cpp'],
         ['Model', local?.label ?? 'None installed'],
-        ['File', local?.installed ? `ggml-${prefs?.model} · Metal` : 'None installed'],
+        ['File', local?.installed ? `ggml-${prefs?.model} · ${gpu}` : 'None installed'],
         ['Languages', langs],
         ['AI cleanup', prefs?.aiEnabled && ai ? `${prefs.aiModel} · OpenAI` : 'Off']
       ]
@@ -94,6 +102,24 @@ export default function AboutPane({ prefs, updates, onUpdates }: PaneProps & {
           </div>
         </section>
       </div>
+
+      {canSwitch && (
+        <SettingsGroup>
+          <SettingsRow
+            title="Use the new speech engine (beta)"
+            desc={helper.forced
+              ? `QUILL_HELPER is set, so Quill runs the ${helper.kind === 'rust' ? 'new' : 'current'} engine whatever this says.`
+              : 'The rewritten engine that also runs on Windows and Linux. It switches as soon as you flip this; a recording in progress is cancelled.'}
+          >
+            <Toggle
+              label="Use the new speech engine (beta)"
+              on={helper.forced ? helper.kind === 'rust' : wantsRust}
+              disabled={!prefs || helper.forced}
+              onChange={(v) => void update({ helper: v ? 'rust' : 'swift' })}
+            />
+          </SettingsRow>
+        </SettingsGroup>
+      )}
     </div>
   )
 }
