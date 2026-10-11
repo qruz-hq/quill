@@ -62,12 +62,14 @@ mac:
 
 dmg:
   title: "${productName} ${version}"
+  # The stock background is 540 x 380 with its arrow at y 220: both icons sit
+  # on that line.
   contents:
-    - x: 140
-      y: 180
+    - x: 130
+      y: 220
       type: file
-    - x: 400
-      y: 180
+    - x: 410
+      y: 220
       type: link
       path: /Applications
 
