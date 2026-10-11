@@ -46,5 +46,18 @@ bun pm version patch   # or minor / major, bumps package.json
 git push --follow-tags
 ```
 
-The GitHub Action builds and publishes a draft release. Publish it and clients
-pick it up on next launch.
+Only the maintainer can push a `v*` tag. The tag starts the Release workflow,
+which waits for approval of the `release` environment (Actions tab, Review
+deployments). That environment holds the signing secrets:
+
+| Secret | What |
+|---|---|
+| `CSC_LINK` | Developer ID Application certificate, a base64 `.p12` |
+| `CSC_KEY_PASSWORD` | the `.p12` password |
+| `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | notarisation |
+| `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD` | optional Windows certificate |
+
+The workflow builds macOS (signed and notarised), Windows and Linux, and
+attaches everything to a draft release. Publish the draft and installed copies
+offer the update: macOS, Windows and the Linux AppImage download and install
+it themselves; a deb install is sent to the release page.

@@ -47,9 +47,11 @@ mac:
       to: MacOS/flow-stt
     - from: resources/helper/flow-stt
       to: MacOS/flow-stt-rs
-  # Ad-hoc. Without a Developer ID the app is still Gatekeeper-blocked on other
-  # Macs, but ad-hoc at least keeps it launchable once quarantine is cleared.
-  identity: "-"
+  # Signed with the Developer ID in CSC_LINK and notarised when the APPLE_*
+  # variables are set (the release workflow). Without a certificate the build
+  # is ad-hoc signed: it runs on the Mac that built it, and elsewhere only
+  # once quarantine is cleared.
+  notarize: true
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist

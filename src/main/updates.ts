@@ -1,14 +1,16 @@
 import { app, shell, dialog, BrowserWindow } from 'electron'
+import { autoUpdater } from 'electron-updater'
 
 const RELEASES_API = (repo: string): string => `https://api.github.com/repos/${repo}/releases/latest`
 
 /**
  * Checks GitHub Releases and tells the user when a newer build exists.
  *
- * Deliberately notify-only rather than electron-updater: Squirrel.Mac verifies
- * the signature of a downloaded build before applying it, so an ad-hoc signed
- * app cannot update itself. Once the app is signed with a Developer ID, swap
- * this for autoUpdater, see docs/RELEASING.md.
+ * Where the app can replace itself, accepting downloads the update in the
+ * background and offers a restart (electron-updater). That needs a packaged
+ * app: on macOS one signed with a Developer ID, since Squirrel.Mac refuses
+ * anything else, on Windows the installed build, on Linux the AppImage. Every
+ * other case (dev, a deb install, a failed download) opens the release page.
  */
 export type UpdateInfo = {
   current: string
@@ -71,7 +73,7 @@ export async function promptIfNewer(
       title: 'Update available',
       message: `Quill ${r.latest} is available`,
       detail: `You are running ${r.current}.` + (firstLine ? `\n\n${firstLine}` : ''),
-      buttons: ['Download', 'Later'],
+      buttons: [canSelfUpdate() ? 'Update' : 'Download', 'Later'],
       defaultId: 0,
       cancelId: 1,
       checkboxLabel: `Skip version ${r.latest}`,
@@ -81,8 +83,54 @@ export async function promptIfNewer(
   )
 
   if (checkboxChecked && r.latest) opts.onSkip?.(r.latest)
-  if (response === 0) void shell.openExternal(r.url)
+  if (response === 0) {
+    if (canSelfUpdate()) void selfUpdate(r.latest, r.url)
+    else void shell.openExternal(r.url)
+  }
   return r
+}
+
+/** True when this build can download and apply an update by itself. */
+function canSelfUpdate(): boolean {
+  if (!app.isPackaged) return false
+  if (process.platform === 'linux') return Boolean(process.env.APPIMAGE)
+  return process.platform === 'darwin' || process.platform === 'win32'
+}
+
+let updating = false
+
+/**
+ * Downloads the update, then offers a restart. Declining leaves it to install
+ * when the app next quits. Any failure falls back to the release page, so a
+ * build that cannot verify the download still gets the user there.
+ */
+async function selfUpdate(version: string, url: string): Promise<void> {
+  if (updating) return
+  updating = true
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.logger = null
+  try {
+    const found = await autoUpdater.checkForUpdates()
+    if (!found?.isUpdateAvailable) throw new Error('the update feed has no newer version')
+    await autoUpdater.downloadUpdate()
+    const { response } = await dialog.showMessageBox({
+      type: 'info',
+      title: 'Update ready',
+      message: `Quill ${version} is ready to install`,
+      detail: 'Restart now, or it installs the next time you quit Quill.',
+      buttons: ['Restart now', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    })
+    if (response === 0) autoUpdater.quitAndInstall()
+  } catch (err) {
+    console.error(`[updates] self-update failed: ${err instanceof Error ? err.message : String(err)}`)
+    void shell.openExternal(url)
+  } finally {
+    updating = false
+  }
 }
 
 /** Semver compare, tolerant of missing segments. */
