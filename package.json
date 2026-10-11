@@ -1,9 +1,10 @@
 {
   "name": "quill",
   "version": "0.2.0",
-  "description": "Local-first dictation for macOS",
+  "description": "Local-first dictation for macOS, Windows and Linux",
   "main": "./out/main/index.js",
-  "author": "",
+  "author": "Gui Rodrigues",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "electron-vite dev",

@@ -3,7 +3,9 @@ name: Release
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
+
+# Nothing is granted by default: each job asks for what it needs.
+permissions: {}
 
 jobs:
   build:
@@ -13,6 +15,10 @@ jobs:
     # attached when they build; a failure there is shown on the run and does
     # not hold the macOS release back.
     continue-on-error: ${{ !matrix.required }}
+    # The signing secrets live in this environment. It only accepts v* tags
+    # and waits for a maintainer's approval, so no branch or pull request
+    # can reach them.
+    environment: release
     strategy:
       fail-fast: false
       matrix:
@@ -27,16 +33,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { persist-credentials: false }
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with: { bun-version: latest }
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: native/helper
+      # No build cache here: a release is built from scratch so that nothing
+      # saved by an earlier run can end up in a signed installer.
 
       - name: Linux build packages
         if: runner.os == 'Linux'
@@ -94,7 +100,7 @@ jobs:
           # each create their own draft. The `draft` job attaches everything.
           bun scripts/dist.ts --publish never
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: installers-${{ matrix.name }}
           if-no-files-found: error
@@ -115,9 +121,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: dist
           pattern: installers-*

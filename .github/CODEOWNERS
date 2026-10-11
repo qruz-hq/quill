@@ -1,0 +1,8 @@
+# Everything is reviewed by the maintainer.
+* @qruz-hq
+
+# Build, release and signing configuration.
+/.github/ @qruz-hq
+/electron-builder.yml @qruz-hq
+/build/ @qruz-hq
+/scripts/ @qruz-hq
