@@ -1,54 +1,43 @@
 # Quill
 
-A local-first dictation app for macOS, Windows and Linux. Hold a key, speak, and the text is typed
-into whatever app you are using.
+Hold a key, speak, and your words are typed into whatever app you are using.
+Quill transcribes on your own machine with [whisper.cpp](https://github.com/ggerganov/whisper.cpp),
+so it works offline and your audio stays on your computer.
 
-Transcription runs entirely on your machine with [whisper.cpp](https://github.com/ggerganov/whisper.cpp).
-Nothing is uploaded unless you opt into AI cleanup, and even then only the
-transcript text, never audio.
+![Quill's home screen: hold fn to talk, words today, words per minute and recent dictations](docs/images/dictation.png)
 
-## What it does
+## Download
 
-- **Dictation**, hold `fn` (or `⌃⌥D`) and speak; text is typed into the focused app
-- **Whisper, on-device**, pick a model in Settings; only the one you choose downloads
-- **Multi-language**, select several and it detects which you spoke
-- **Snippets**, say a trigger, get a longer phrase typed
-- **Transforms**, `⌥1`–`⌥9` reshape the last dictation
-- **Scratchpad**, `⌥S` floating notepad; `⌥M` records straight into a note
-- **Insights**, contribution grid, words per minute, most-used words
-- **AI cleanup** (optional), your own OpenAI key tidies punctuation and lists
+Get the latest build from [Releases](https://github.com/qruz-hq/quill/releases).
+macOS 14+ on Apple silicon. Windows and Linux are in preview, see [docs/PLATFORMS.md](docs/PLATFORMS.md).
 
-## Requirements
+On first launch Quill asks for the microphone and Accessibility (needed for the hotkey and for typing into other apps).
 
-- macOS 14+ on Apple silicon, or Windows or Linux on x64 (preview, see [docs/PLATFORMS.md](docs/PLATFORMS.md))
-- Accessibility permission (for the `fn` hotkey and typing into other apps)
-- Microphone permission
+## What you get
+
+| | |
+|---|---|
+| ![Snippets](docs/images/snippets.png) | ![Transforms](docs/images/transforms.png) |
+| **Snippets.** Say a short trigger, get the full text. | **Transforms.** Press `⌥1` to `⌥9` to reshape what you just said. |
+| ![Speech models](docs/images/models.png) | ![Scratchpad](docs/images/scratchpad.png) |
+| **Your choice of model.** From Tiny to Turbo, downloaded only when you pick one. Cloud transcription is optional. | **Scratchpad.** `⌥S` opens a notepad you can dictate straight into. |
+
+Also: several languages at once, a streak and words-per-minute view, and optional AI cleanup with your own OpenAI key.
 
 ## Development
 
 ```bash
 bun install
-bun run helper:build  # the Rust helper, every platform
-bun run stt:build     # the Swift helper, macOS only
+bun run helper:build  # native helper (Rust)
+bun run stt:build     # Swift helper, macOS only
 bun run dev
 ```
 
-## Building a release
-
-```bash
-bun run package       # produces dist/mac-arm64/
-```
-
-## Signing
-
-Builds are ad-hoc signed by default, which means macOS Gatekeeper will refuse to
-open them on another machine and automatic updates cannot be applied. Both need
-an Apple Developer ID certificate. See `docs/RELEASING.md`.
+`bun run package` builds the app into `dist/`. Signing and releases are in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security problems go through
-[SECURITY.md](SECURITY.md), not public issues.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report security problems through [SECURITY.md](SECURITY.md), not public issues.
 
 ## License
 
