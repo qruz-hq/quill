@@ -140,12 +140,19 @@ fn main() {
     // library came out unoptimised (every core flat out for seconds per pass)
     // with ggml's debug asserts on, and its `!isnan(x)` check in GELU aborted
     // the helper mid-pass. Setting the variables ourselves stops the override.
-    // /MD matches Rust's default CRT on MSVC.
+    // The CRT has to match the Rust side's, as cc would pick it: static (/MT)
+    // when built with `+crt-static`, which scripts/build-helper.ts sets.
     if target.contains("msvc") {
-        let flags = if build_type == "Release" { "/MD /O2 /Ob2 /DNDEBUG" } else { "/MD /Zi /O2 /Ob1 /DNDEBUG" };
+        let features = env::var("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
+        let static_crt = features.split(',').any(|f| f == "crt-static");
+        let crt = if static_crt { "/MT" } else { "/MD" };
+        let opt = if build_type == "Release" { "/O2 /Ob2 /DNDEBUG" } else { "/Zi /O2 /Ob1 /DNDEBUG" };
+        let flags = format!("{crt} {opt}");
         let upper = build_type.to_uppercase();
-        config.define(format!("CMAKE_C_FLAGS_{upper}"), flags);
-        config.define(format!("CMAKE_CXX_FLAGS_{upper}"), flags);
+        config.define(format!("CMAKE_C_FLAGS_{upper}"), &flags);
+        config.define(format!("CMAKE_CXX_FLAGS_{upper}"), &flags);
+        // CMake 3.15+ picks the runtime from this too; keep the two in step.
+        config.define("CMAKE_MSVC_RUNTIME_LIBRARY", if static_crt { "MultiThreaded" } else { "MultiThreadedDLL" });
     }
     // Any WHISPER_, GGML_ or CMAKE_ variable in the environment goes to cmake.
     for (key, value) in env::vars() {
