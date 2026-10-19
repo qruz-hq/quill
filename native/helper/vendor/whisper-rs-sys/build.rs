@@ -130,11 +130,22 @@ fn main() {
     }
     // whisper.cpp is unusable unoptimised, so a debug build of the helper
     // still gets an optimised library (with symbols when asked for).
+    let build_type = if feature("force-debug") { "RelWithDebInfo" } else { "Release" };
+    config.define("CMAKE_BUILD_TYPE", build_type);
     if feature("force-debug") {
-        config.define("CMAKE_BUILD_TYPE", "RelWithDebInfo");
         config.cxxflag("-DWHISPER_DEBUG");
-    } else {
-        config.define("CMAKE_BUILD_TYPE", "Release");
+    }
+    // On MSVC the cmake crate replaces CMAKE_<LANG>_FLAGS_<CONFIG> with cc's
+    // flags minus every /O switch, which also drops CMake's /DNDEBUG: the
+    // library came out unoptimised (every core flat out for seconds per pass)
+    // with ggml's debug asserts on, and its `!isnan(x)` check in GELU aborted
+    // the helper mid-pass. Setting the variables ourselves stops the override.
+    // /MD matches Rust's default CRT on MSVC.
+    if target.contains("msvc") {
+        let flags = if build_type == "Release" { "/MD /O2 /Ob2 /DNDEBUG" } else { "/MD /Zi /O2 /Ob1 /DNDEBUG" };
+        let upper = build_type.to_uppercase();
+        config.define(format!("CMAKE_C_FLAGS_{upper}"), flags);
+        config.define(format!("CMAKE_CXX_FLAGS_{upper}"), flags);
     }
     // Any WHISPER_, GGML_ or CMAKE_ variable in the environment goes to cmake.
     for (key, value) in env::vars() {

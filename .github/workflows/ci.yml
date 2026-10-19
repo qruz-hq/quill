@@ -102,3 +102,19 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: bun run package
+
+      # An unsigned Windows installer for testers, kept with the run for a
+      # week. SmartScreen warns on it ("More info" then "Run anyway").
+      - name: Windows test installer
+        if: runner.os == 'Windows' && github.event_name == 'pull_request'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: bun scripts/dist.ts --publish never --skip-typecheck
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: runner.os == 'Windows' && github.event_name == 'pull_request'
+        with:
+          name: quill-windows-test
+          if-no-files-found: error
+          retention-days: 7
+          path: dist/*.exe

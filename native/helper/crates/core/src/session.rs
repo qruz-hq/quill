@@ -47,6 +47,7 @@ pub const MSG_START_FAILED: &str = "Could not open the microphone. Check the inp
 pub const MSG_NO_MODEL: &str = "No speech model installed. Pick one in Settings.";
 pub const MSG_NO_MODEL_FALLBACK: &str = "Cloud transcription failed and no speech model is installed to fall back on.";
 pub const MSG_WAV_FAILED: &str = "Could not save the recording for upload.";
+pub const MSG_NO_LOCAL: &str = "This computer cannot run the local speech model. Switch to cloud transcription in Settings.";
 
 /// What the settings commands set. Main re-sends all of it on every spawn, so
 /// the defaults only matter for the instant before those lines are read.
@@ -212,7 +213,7 @@ impl Session {
         }
         if asr {
             list.push("transcribe");
-            if audio {
+            if audio && self.b.transcriber.partials() {
                 list.push("partials");
             }
             list.extend(["language-detect", "transcribe-file"]);
@@ -493,7 +494,7 @@ impl Session {
             streaming,
             chunker: Chunker::new(),
             next_chunk: streaming.then(|| now + CHUNK_INTERVAL),
-            next_partial: (!streaming).then(|| now + PARTIAL_INTERVAL),
+            next_partial: (!streaming && self.b.transcriber.partials()).then(|| now + PARTIAL_INTERVAL),
             partial_in_flight: false,
             ended: Arc::new(AtomicBool::new(false)),
             retry,
@@ -653,6 +654,11 @@ impl Session {
             return;
         }
 
+        if !self.b.transcriber.supported() {
+            logln!("transcribe aborted: this build or this CPU cannot transcribe locally");
+            self.emit(Event::final_error(id, MSG_NO_LOCAL));
+            return;
+        }
         let Some(model) = self.model() else {
             logln!("transcribe aborted: no model at \"{}\"", self.settings.model);
             self.emit(Event::final_error(id, MSG_NO_MODEL));
@@ -688,7 +694,7 @@ impl Session {
         let model = self.model();
         let Some(rec) = self.recording.as_mut() else { return };
         rec.next_partial = Some(now + PARTIAL_INTERVAL);
-        if rec.partial_in_flight || rec.samples.len() < PARTIAL_MIN_SAMPLES || !self.b.transcriber.supported() {
+        if rec.partial_in_flight || rec.samples.len() < PARTIAL_MIN_SAMPLES || !self.b.transcriber.partials() {
             return;
         }
         let Some(model) = model else { return };

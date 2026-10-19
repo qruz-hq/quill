@@ -91,6 +91,8 @@ impl Ducker for FakeDucker {
 /// Answers with the language it was told and how much audio it was given.
 struct FakeTranscriber {
     detected: Option<String>,
+    /// False for an engine too slow for live text (a CPU build).
+    live: bool,
 }
 
 impl Transcriber for FakeTranscriber {
@@ -102,6 +104,9 @@ impl Transcriber for FakeTranscriber {
     }
     fn detect_language(&self, _model: &Path, _samples: &[f32]) -> Option<String> {
         self.detected.clone()
+    }
+    fn partials(&self) -> bool {
+        self.live
     }
 }
 
@@ -213,7 +218,7 @@ impl Rig {
         let mut backends = Backends {
             audio: Box::new(FakeAudio(audio.clone())),
             watcher: Box::new(unsupported::NoDeviceWatcher),
-            transcriber: Arc::new(FakeTranscriber { detected: None }),
+            transcriber: Arc::new(FakeTranscriber { detected: None, live: true }),
             hotkey: Box::new(FakeHotkey { installed: false, fail: None, keys: keys.clone() }),
             inserter: Arc::new(FakeInserter),
             ducker: duck.clone(),
@@ -533,7 +538,7 @@ fn local_stop_transcribes_and_retry_runs_it_again() {
 #[test]
 fn several_languages_run_detection_and_snap_to_the_set() {
     for (detected, expected) in [(Some("fr"), "Final fr 8000"), (Some("de"), "Final en 8000"), (None, "Final en 8000")] {
-        let mut r = Rig::with(|b| b.transcriber = Arc::new(FakeTranscriber { detected: detected.map(str::to_string) }));
+        let mut r = Rig::with(|b| b.transcriber = Arc::new(FakeTranscriber { detected: detected.map(str::to_string), live: true }));
         r.use_model();
         r.cmd("lang en,fr");
         r.cmd("start");
@@ -764,6 +769,36 @@ fn no_partials_without_a_model_or_in_streaming_mode() {
     r.advance(3100);
     assert!(r.rx.recv_timeout(Duration::from_millis(100)).is_err());
     assert!(!r.kinds().contains(&"partial".to_string()));
+}
+
+#[test]
+fn an_engine_too_slow_for_live_text_gets_no_partials_but_still_a_final() {
+    let mut r = Rig::with(|b| b.transcriber = Arc::new(FakeTranscriber { detected: None, live: false }));
+    r.s.boot(r.now);
+    let caps = r.events()[1]["capabilities"].clone();
+    assert!(!caps.as_array().unwrap().contains(&json!("partials")), "{caps}");
+    assert!(caps.as_array().unwrap().contains(&json!("transcribe")), "{caps}");
+    r.clear();
+    r.use_model();
+    r.cmd("start");
+    r.speak(1.2);
+    r.advance(3100);
+    assert!(r.rx.recv_timeout(Duration::from_millis(100)).is_err());
+    r.cmd("stop 1");
+    r.wait_for("final");
+    assert!(!r.kinds().contains(&"partial".to_string()));
+    assert_eq!(r.last("final")["text"], json!("Final en 19200"));
+}
+
+#[test]
+fn a_build_that_cannot_transcribe_says_so_in_the_final() {
+    let mut r = Rig::with(|b| b.transcriber = Arc::new(unsupported::NoTranscriber));
+    r.use_model();
+    r.cmd("start");
+    r.speak(0.5);
+    r.cmd("stop 3");
+    assert_eq!(r.quiet_kinds(), strs(&["started", "final"]));
+    assert_eq!(r.last("final"), json!({"type": "final", "id": "3", "text": "", "error": MSG_NO_LOCAL}));
 }
 
 // ------------------------------------------- opening and losing the mic

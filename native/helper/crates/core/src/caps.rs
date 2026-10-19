@@ -181,6 +181,13 @@ pub trait Transcriber: Send + Sync {
     /// failed. Only called with several languages configured.
     fn detect_language(&self, model: &Path, samples: &[f32]) -> Option<String>;
 
+    /// Whether interim passes are worth running while the user speaks. Each one
+    /// re-decodes the whole recording, which a GPU does in a blink and a CPU
+    /// does at full load on every core for as long as the key is held.
+    fn partials(&self) -> bool {
+        self.supported()
+    }
+
     /// A word for the capabilities handshake's `notes` (`"metal"`, `"cpu"`).
     fn note(&self) -> Option<String> {
         None
