@@ -870,6 +870,16 @@ fn spawn(name: &str, job: impl FnOnce() + Send + 'static) -> bool {
 /// an `error` event.
 fn decode(transcriber: &dyn Transcriber, model: &Path, samples: &[f32], language: &str, mode: DecodeMode, abort: &AtomicBool) -> String {
     match transcriber.transcribe(&TranscribeJob { model, samples, language, mode, abort }) {
+        Ok(raw) if is_nan_output(&raw) => {
+            // Token 0 over and over: the logits were NaN. Nothing to type, but
+            // the recording is kept so the failure can be replayed elsewhere.
+            let path = crate::paths::log_file().with_file_name("Quill-failed-recording.wav");
+            let saved = crate::wav::write(&path, samples, SAMPLE_RATE).map_or_else(|e| format!("not saved ({e})"), |()| format!("saved to {}", path.display()));
+            let bad = samples.iter().filter(|s| !s.is_finite()).count();
+            let rms = (samples.iter().filter(|s| s.is_finite()).map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt();
+            logln!("whisper returned only \"!\" ({mode:?}, NaN logits): {} samples, {bad} not finite, rms {rms:.4}, recording {saved}", samples.len());
+            String::new()
+        }
         Ok(raw) => clean_transcript(&raw),
         Err(error) => {
             if !abort.load(Ordering::Relaxed) {
@@ -878,6 +888,13 @@ fn decode(transcriber: &dyn Transcriber, model: &Path, samples: &[f32], language
             String::new()
         }
     }
+}
+
+/// Whisper's answer when every logit is NaN: token 0 ("!") until the length
+/// limit, with nothing else but spaces.
+fn is_nan_output(raw: &str) -> bool {
+    let bangs = raw.chars().filter(|&c| c == '!').count();
+    bangs >= 5 && raw.chars().all(|c| c == '!' || c.is_whitespace())
 }
 
 #[cfg(test)]

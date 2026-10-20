@@ -14,7 +14,10 @@ import { spawn } from 'child_process'
 import { join, resolve } from 'path'
 
 const root = resolve(import.meta.dir, '..')
-const wav = join(root, 'native', 'helper', 'vendor', 'whisper-rs-sys', 'whisper.cpp', 'samples', 'jfk.wav')
+// SMOKE_WAV replays another recording (one a user's helper saved after a
+// failure); its words are not checked, only that they are real text.
+const custom = process.env.SMOKE_WAV
+const wav = custom ? resolve(custom) : join(root, 'native', 'helper', 'vendor', 'whisper-rs-sys', 'whisper.cpp', 'samples', 'jfk.wav')
 const [helper, ...runs] = process.argv.slice(2)
 if (!helper || runs.length === 0) {
   console.error('usage: bun scripts/smoke-transcribe.ts <helper> <model>[,<lang>[,<threads>]] ...')
@@ -63,7 +66,7 @@ for (const run of runs) {
     const ms = Math.round(performance.now() - started)
     // A line of "!" is token 0 over and over: NaN logits.
     const real = /\p{L}{3}/u.test(text) && !/!{5}/.test(text)
-    const ok = lang === 'en' ? /ask not what your country/i.test(text) : real
+    const ok = lang === 'en' && !custom ? /ask not what your country/i.test(text) : real
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${run} in ${ms} ms: ${JSON.stringify(text.slice(0, 200))}`)
     if (!ok) failed = true
   } catch (error) {

@@ -1192,3 +1192,12 @@ fn transcribe_file_resamples_what_is_not_sixteen_kilohertz() {
     let samples: i64 = text.rsplit(' ').next().unwrap().parse().unwrap();
     assert!((samples - 16_000).abs() <= 2, "{text}");
 }
+
+#[test]
+fn a_line_of_bangs_is_nan_output_and_real_text_is_not() {
+    assert!(super::is_nan_output("!!!!!!!!!!!!!!!!!!!!"));
+    assert!(super::is_nan_output(" !!!!!\n!!!!! "));
+    assert!(!super::is_nan_output("Bonjour !!!!!"));
+    assert!(!super::is_nan_output("!!"));
+    assert!(!super::is_nan_output(""));
+}
