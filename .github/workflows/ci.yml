@@ -118,3 +118,15 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: dist/*.exe
+
+      # The CPU builds (Windows, Linux) decode a real recording: a build that
+      # runs but returns garbage (a line of "!", NaN logits) fails here. Last,
+      # so the test installer above is still attached when it fails.
+      - name: Transcription smoke test (CPU builds)
+        if: runner.os != 'macOS'
+        run: |
+          mkdir -p .models
+          for m in tiny.en base.en-q5_1 small-q5_1; do
+            curl -sSfL -o ".models/ggml-$m.bin" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-$m.bin"
+          done
+          bun scripts/smoke-transcribe.ts ${{ matrix.helper }} .models/ggml-tiny.en.bin .models/ggml-base.en-q5_1.bin .models/ggml-small-q5_1.bin
