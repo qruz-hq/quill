@@ -129,4 +129,6 @@ jobs:
           for m in tiny.en base.en-q5_1 small-q5_1; do
             curl -sSfL -o ".models/ggml-$m.bin" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-$m.bin"
           done
-          bun scripts/smoke-transcribe.ts ${{ matrix.helper }} .models/ggml-tiny.en.bin .models/ggml-base.en-q5_1.bin .models/ggml-small-q5_1.bin
+          # French and 8 threads: the settings of the machine that got only "!".
+          bun scripts/smoke-transcribe.ts ${{ matrix.helper }} .models/ggml-tiny.en.bin .models/ggml-base.en-q5_1.bin \
+            .models/ggml-small-q5_1.bin .models/ggml-small-q5_1.bin,fr .models/ggml-small-q5_1.bin,fr,8

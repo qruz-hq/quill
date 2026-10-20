@@ -54,11 +54,29 @@ pub struct CaptureSink {
     bus: Bus,
     capture: CaptureId,
     resampler: Option<(u32, Resampler)>,
+    /// Samples the device sent that were NaN or infinite, replaced by silence.
+    /// One of them reaching whisper turns every logit into NaN, and the text
+    /// into a line of "!".
+    non_finite: u64,
 }
 
 impl CaptureSink {
     pub fn new(bus: Bus, capture: CaptureId) -> Self {
-        Self { bus, capture, resampler: None }
+        Self { bus, capture, resampler: None, non_finite: 0 }
+    }
+
+    /// Replaces NaN and infinite samples with silence, and says so once per
+    /// capture (the total is logged when the capture ends).
+    fn sanitize<'a>(&mut self, samples: &'a [f32]) -> std::borrow::Cow<'a, [f32]> {
+        let bad = samples.iter().filter(|s| !s.is_finite()).count();
+        if bad == 0 {
+            return std::borrow::Cow::Borrowed(samples);
+        }
+        if self.non_finite == 0 {
+            crate::logln!("mic: the device sent NaN or infinite samples, replacing them with silence");
+        }
+        self.non_finite += bad as u64;
+        std::borrow::Cow::Owned(samples.iter().map(|&s| if s.is_finite() { s } else { 0.0 }).collect())
     }
 
     /// Audio that already is 16 kHz mono.
@@ -71,7 +89,8 @@ impl CaptureSink {
     /// Interleaved float frames in the device's own format: downmixed and
     /// resampled to 16 kHz here.
     pub fn push(&mut self, interleaved: &[f32], channels: u16, rate: u32) {
-        let mono = downmix(interleaved, channels);
+        let interleaved = self.sanitize(interleaved);
+        let mono = downmix(&interleaved, channels);
         if rate == crate::SAMPLE_RATE {
             return self.push_mono_16k(&mono);
         }
@@ -90,6 +109,14 @@ impl CaptureSink {
     /// data callback.
     pub fn lost_handle(&self) -> LostHandle {
         LostHandle { bus: self.bus.clone(), capture: self.capture }
+    }
+}
+
+impl Drop for CaptureSink {
+    fn drop(&mut self) {
+        if self.non_finite > 0 {
+            crate::logln!("mic: {} NaN or infinite samples replaced with silence in this capture", self.non_finite);
+        }
     }
 }
 
@@ -388,6 +415,20 @@ mod tests {
         assert!((out.len() as i64 - 16_000).abs() < 200, "{}", out.len());
         // The mean of the two channels, once the filter has settled.
         assert!(out[2000..].iter().all(|s| (s - 0.2).abs() < 0.01));
+    }
+
+    #[test]
+    fn nan_and_infinite_samples_become_silence() {
+        let (bus, rx) = Bus::new();
+        let mut sink = CaptureSink::new(bus, 3);
+        sink.push(&[0.5, f32::NAN, f32::INFINITY, -0.25], 1, 16_000);
+        assert_eq!(drain(&rx), vec![0.5, 0.0, 0.0, -0.25]);
+        // Resampled audio stays finite too: one NaN would spread over the kernel.
+        let frame: Vec<f32> = (0..960).map(|i| if i == 100 { f32::NAN } else { 0.1 }).collect();
+        for _ in 0..10 {
+            sink.push(&frame, 2, 48_000);
+        }
+        assert!(drain(&rx).iter().all(|s| s.is_finite()));
     }
 
     #[test]

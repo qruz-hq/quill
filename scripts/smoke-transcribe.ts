@@ -4,22 +4,27 @@
  * line of "!" is NaN logits), which the conformance tests cannot see on
  * Windows and Linux: their speech fixture needs macOS `say`.
  *
- *   bun scripts/smoke-transcribe.ts <helper> <model> [<model> ...]
+ *   bun scripts/smoke-transcribe.ts <helper> <run> [<run> ...]
+ *
+ * A run is `<model>[,<lang>[,<threads>]]`: the language is `en` unless given,
+ * and the thread count the helper's own choice. With a language other than
+ * English the text is not checked for the words, only for being real text.
  */
 import { spawn } from 'child_process'
 import { join, resolve } from 'path'
 
 const root = resolve(import.meta.dir, '..')
 const wav = join(root, 'native', 'helper', 'vendor', 'whisper-rs-sys', 'whisper.cpp', 'samples', 'jfk.wav')
-const [helper, ...models] = process.argv.slice(2)
-if (!helper || models.length === 0) {
-  console.error('usage: bun scripts/smoke-transcribe.ts <helper> <model> [<model> ...]')
+const [helper, ...runs] = process.argv.slice(2)
+if (!helper || runs.length === 0) {
+  console.error('usage: bun scripts/smoke-transcribe.ts <helper> <model>[,<lang>[,<threads>]] ...')
   process.exit(2)
 }
 
-function transcribe(model: string): Promise<string> {
+function transcribe(model: string, lang: string, threads: string | undefined): Promise<string> {
   return new Promise((done, fail) => {
-    const child = spawn(resolve(helper), [], { stdio: ['pipe', 'pipe', 'inherit'] })
+    const env = threads ? { ...process.env, QUILL_WHISPER_THREADS: threads } : process.env
+    const child = spawn(resolve(helper), [], { stdio: ['pipe', 'pipe', 'inherit'], env })
     const timer = setTimeout(() => {
       child.kill()
       fail(new Error('no final within 180 s'))
@@ -45,18 +50,21 @@ function transcribe(model: string): Promise<string> {
       clearTimeout(timer)
       fail(new Error(`helper exited (${code}) before a final`))
     })
-    child.stdin.write(`model ${resolve(model)}\nlang en\ntranscribe-file smoke ${wav}\n`)
+    child.stdin.write(`model ${resolve(model)}\nlang ${lang}\ntranscribe-file smoke ${wav}\n`)
   })
 }
 
 let failed = false
-for (const model of models) {
+for (const run of runs) {
+  const [model, lang = 'en', threads] = run.split(',')
   const started = performance.now()
   try {
-    const text = await transcribe(model)
+    const text = await transcribe(model, lang, threads)
     const ms = Math.round(performance.now() - started)
-    const ok = /ask not what your country/i.test(text)
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${model} in ${ms} ms: ${JSON.stringify(text.slice(0, 200))}`)
+    // A line of "!" is token 0 over and over: NaN logits.
+    const real = /\p{L}{3}/u.test(text) && !/!{5}/.test(text)
+    const ok = lang === 'en' ? /ask not what your country/i.test(text) : real
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${run} in ${ms} ms: ${JSON.stringify(text.slice(0, 200))}`)
     if (!ok) failed = true
   } catch (error) {
     console.log(`FAIL ${model}: ${(error as Error).message}`)

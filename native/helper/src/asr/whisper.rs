@@ -291,7 +291,10 @@ impl Whisper {
     pub fn new() -> Self {
         install_log_hook();
         let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-        Self { threads: options::threads(cores, cpu()) }
+        // QUILL_WHISPER_THREADS overrides the count, for tests that need a
+        // given machine's thread count on another one.
+        let forced = std::env::var("QUILL_WHISPER_THREADS").ok().and_then(|v| v.trim().parse::<usize>().ok()).filter(|&n| n > 0);
+        Self { threads: forced.unwrap_or_else(|| options::threads(cores, cpu())) }
     }
 
     /// Waits for the other passes on a CPU build (`None` elsewhere). A pass
