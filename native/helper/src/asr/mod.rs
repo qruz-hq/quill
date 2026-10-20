@@ -48,10 +48,43 @@ mod whisper;
 pub fn create() -> Arc<dyn Transcriber> {
     #[cfg(feature = "asr")]
     {
+        // whisper.cpp is compiled for an AVX2 baseline on x86-64
+        // (vendor/whisper-rs-sys/build.rs). On a processor without it the
+        // first pass dies with an illegal instruction, which no handler sees:
+        // the helper would vanish with nothing in the log. Say so instead, and
+        // report local transcription as unavailable.
+        if let Some(missing) = missing_cpu_features() {
+            quill_core::logln!("whisper: this CPU lacks {missing}, local transcription is off");
+            return Arc::new(quill_core::unsupported::NoTranscriber);
+        }
         whisper::create()
     }
     #[cfg(not(feature = "asr"))]
     {
         Arc::new(quill_core::unsupported::NoTranscriber)
+    }
+}
+
+/// The x86-64 features whisper.cpp is built to assume, that this processor
+/// does not have (`None` when it has them all, and on every other architecture).
+#[cfg(feature = "asr")]
+fn missing_cpu_features() -> Option<String> {
+    #[cfg(target_arch = "x86_64")]
+    {
+        let missing: Vec<&str> = [
+            ("avx", std::arch::is_x86_feature_detected!("avx")),
+            ("avx2", std::arch::is_x86_feature_detected!("avx2")),
+            ("fma", std::arch::is_x86_feature_detected!("fma")),
+            ("f16c", std::arch::is_x86_feature_detected!("f16c")),
+            ("bmi2", std::arch::is_x86_feature_detected!("bmi2")),
+        ]
+        .into_iter()
+        .filter_map(|(name, present)| (!present).then_some(name))
+        .collect();
+        (!missing.is_empty()).then(|| missing.join(", "))
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        None
     }
 }

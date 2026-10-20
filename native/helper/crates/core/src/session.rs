@@ -47,6 +47,7 @@ pub const MSG_START_FAILED: &str = "Could not open the microphone. Check the inp
 pub const MSG_NO_MODEL: &str = "No speech model installed. Pick one in Settings.";
 pub const MSG_NO_MODEL_FALLBACK: &str = "Cloud transcription failed and no speech model is installed to fall back on.";
 pub const MSG_WAV_FAILED: &str = "Could not save the recording for upload.";
+pub const MSG_NO_LOCAL: &str = "This computer cannot run the local speech model. Switch to cloud transcription in Settings.";
 
 /// What the settings commands set. Main re-sends all of it on every spawn, so
 /// the defaults only matter for the instant before those lines are read.
@@ -212,7 +213,7 @@ impl Session {
         }
         if asr {
             list.push("transcribe");
-            if audio {
+            if audio && self.b.transcriber.partials() {
                 list.push("partials");
             }
             list.extend(["language-detect", "transcribe-file"]);
@@ -493,7 +494,7 @@ impl Session {
             streaming,
             chunker: Chunker::new(),
             next_chunk: streaming.then(|| now + CHUNK_INTERVAL),
-            next_partial: (!streaming).then(|| now + PARTIAL_INTERVAL),
+            next_partial: (!streaming && self.b.transcriber.partials()).then(|| now + PARTIAL_INTERVAL),
             partial_in_flight: false,
             ended: Arc::new(AtomicBool::new(false)),
             retry,
@@ -653,6 +654,11 @@ impl Session {
             return;
         }
 
+        if !self.b.transcriber.supported() {
+            logln!("transcribe aborted: this build or this CPU cannot transcribe locally");
+            self.emit(Event::final_error(id, MSG_NO_LOCAL));
+            return;
+        }
         let Some(model) = self.model() else {
             logln!("transcribe aborted: no model at \"{}\"", self.settings.model);
             self.emit(Event::final_error(id, MSG_NO_MODEL));
@@ -688,7 +694,7 @@ impl Session {
         let model = self.model();
         let Some(rec) = self.recording.as_mut() else { return };
         rec.next_partial = Some(now + PARTIAL_INTERVAL);
-        if rec.partial_in_flight || rec.samples.len() < PARTIAL_MIN_SAMPLES || !self.b.transcriber.supported() {
+        if rec.partial_in_flight || rec.samples.len() < PARTIAL_MIN_SAMPLES || !self.b.transcriber.partials() {
             return;
         }
         let Some(model) = model else { return };
@@ -864,6 +870,16 @@ fn spawn(name: &str, job: impl FnOnce() + Send + 'static) -> bool {
 /// an `error` event.
 fn decode(transcriber: &dyn Transcriber, model: &Path, samples: &[f32], language: &str, mode: DecodeMode, abort: &AtomicBool) -> String {
     match transcriber.transcribe(&TranscribeJob { model, samples, language, mode, abort }) {
+        Ok(raw) if is_nan_output(&raw) => {
+            // Token 0 over and over: the logits were NaN. Nothing to type, but
+            // the recording is kept so the failure can be replayed elsewhere.
+            let path = crate::paths::log_file().with_file_name("Quill-failed-recording.wav");
+            let saved = crate::wav::write(&path, samples, SAMPLE_RATE).map_or_else(|e| format!("not saved ({e})"), |()| format!("saved to {}", path.display()));
+            let bad = samples.iter().filter(|s| !s.is_finite()).count();
+            let rms = (samples.iter().filter(|s| s.is_finite()).map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt();
+            logln!("whisper returned only \"!\" ({mode:?}, NaN logits): {} samples, {bad} not finite, rms {rms:.4}, recording {saved}", samples.len());
+            String::new()
+        }
         Ok(raw) => clean_transcript(&raw),
         Err(error) => {
             if !abort.load(Ordering::Relaxed) {
@@ -872,6 +888,13 @@ fn decode(transcriber: &dyn Transcriber, model: &Path, samples: &[f32], language
             String::new()
         }
     }
+}
+
+/// Whisper's answer when every logit is NaN: token 0 ("!") until the length
+/// limit, with nothing else but spaces.
+fn is_nan_output(raw: &str) -> bool {
+    let bangs = raw.chars().filter(|&c| c == '!').count();
+    bangs >= 5 && raw.chars().all(|c| c == '!' || c.is_whitespace())
 }
 
 #[cfg(test)]

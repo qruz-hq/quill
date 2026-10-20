@@ -9,7 +9,9 @@
 //! - One whisper context per model, shared by every pass.
 //! - One fresh whisper state per pass, as whisper-cli has: a final, a
 //!   partial that is still winding down and a `transcribe-file` can run at the
-//!   same time without waiting for each other. States are deliberately not
+//!   same time without waiting for each other. Not on a CPU build: there every
+//!   pass already uses all but one core, so passes take turns (`pass_turn`)
+//!   instead of stacking thread pools on the same cores. States are deliberately not
 //!   reused: a state that has decoded something else before can give a
 //!   slightly different text for the same audio (measured: a comma for a full
 //!   stop), and a fresh one costs about 8 ms with tiny.en.
@@ -55,6 +57,12 @@ pub struct Whisper {
 fn slot() -> &'static Mutex<Option<Arc<Loaded>>> {
     static SLOT: Mutex<Option<Arc<Loaded>>> = Mutex::new(None);
     &SLOT
+}
+
+/// Held for the whole of a pass on a CPU build, so only one runs at a time.
+fn pass_turn() -> &'static Mutex<()> {
+    static TURN: Mutex<()> = Mutex::new(());
+    &TURN
 }
 
 /// Set once the process is on its way out: every pass in flight aborts at its
@@ -283,7 +291,23 @@ impl Whisper {
     pub fn new() -> Self {
         install_log_hook();
         let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-        Self { threads: options::threads(cores) }
+        // QUILL_WHISPER_THREADS overrides the count, for tests that need a
+        // given machine's thread count on another one.
+        let forced = std::env::var("QUILL_WHISPER_THREADS").ok().and_then(|v| v.trim().parse::<usize>().ok()).filter(|&n| n > 0);
+        Self { threads: forced.unwrap_or_else(|| options::threads(cores, cpu())) }
+    }
+
+    /// Waits for the other passes on a CPU build (`None` elsewhere). A pass
+    /// that waited through the start of an exit gives up instead of starting.
+    fn take_turn(&self) -> Result<Option<MutexGuard<'static, ()>>, TranscribeError> {
+        if !cpu() {
+            return Ok(None);
+        }
+        let turn = lock(pass_turn());
+        if EXITING.load(Ordering::Relaxed) {
+            return Err(TranscribeError("exiting".to_string()));
+        }
+        Ok(Some(turn))
     }
 
     /// The loaded model for `path`, loading it (and dropping the previous
@@ -333,7 +357,7 @@ impl Whisper {
     /// the library's defaults for a greedy pass, then the strategy, then both
     /// `best_of` and `beam_size`. The language is set by `State::full`.
     fn params(&self, mode: DecodeMode, abort: &AtomicBool) -> sys::whisper_full_params {
-        let sampling = options::sampling(mode);
+        let sampling = options::sampling(mode, cpu());
         // SAFETY: plain value returned by the library.
         let mut params = unsafe { sys::whisper_full_default_params(sys::whisper_sampling_strategy_WHISPER_SAMPLING_GREEDY) };
         params.strategy = if sampling.beam_search() {
@@ -399,6 +423,10 @@ impl Transcriber for Whisper {
 
         let language = CString::new(language).map_err(|_| TranscribeError("bad language code".to_string()))?;
 
+        let turn = self.take_turn()?;
+        if job.abort.load(Ordering::Relaxed) {
+            return Err(TranscribeError("aborted".to_string()));
+        }
         let started = Instant::now();
         let mut state = loaded.new_state()?;
         let result = state.full(self.params(job.mode, job.abort), &language, job.samples);
@@ -409,6 +437,7 @@ impl Transcriber for Whisper {
         };
         // Before `loaded`: the exit handler counts the model's holders.
         drop(state);
+        drop(turn);
 
         // The reference logs the time of a final pass only; a partial every
         // 1.5 s would fill the log.
@@ -436,6 +465,7 @@ impl Transcriber for Whisper {
         if !loaded.multilingual {
             return None;
         }
+        let _turn = self.take_turn().ok()?;
         let mut state = loaded.new_state().ok()?;
         let never = AtomicBool::new(false);
         let mut params = self.params(DecodeMode::Final, &never);
@@ -451,9 +481,21 @@ impl Transcriber for Whisper {
         code
     }
 
+    /// No live text on a CPU build: each partial re-decodes the whole
+    /// recording, so they would run back to back on every core for as long as
+    /// the key is held.
+    fn partials(&self) -> bool {
+        !cpu()
+    }
+
     fn note(&self) -> Option<String> {
         Some(backend_note().to_string())
     }
+}
+
+/// True when the build decodes on the processor rather than a GPU.
+fn cpu() -> bool {
+    backend_note() == "cpu"
 }
 
 /// What the build decodes on, for the handshake's notes and the log.
@@ -479,23 +521,21 @@ static LOG_HOOK: Once = Once::new();
 /// into its own log line by line.
 fn install_log_hook() {
     LOG_HOOK.call_once(|| {
-        // The callback's first argument is a C enum, which is an unsigned int
-        // everywhere but under MSVC. Rather than guess a type that cannot be
-        // compiled here, Windows gets whisper-rs's own hook, which swallows
-        // every line.
-        #[cfg(not(windows))]
         // SAFETY: `log_hook` never unwinds and reads only the string it is
         // given; whisper_log_set installs it for ggml too.
         unsafe {
             whisper_rs::set_log_callback(Some(log_hook), std::ptr::null_mut());
         }
-        #[cfg(windows)]
-        whisper_rs::install_logging_hooks();
     });
 }
 
-#[cfg(not(windows))]
-unsafe extern "C" fn log_hook(level: std::ffi::c_uint, text: *const std::ffi::c_char, _user_data: *mut c_void) {
+/// The level is a C enum: an unsigned int everywhere but under MSVC, where it
+/// is a signed one. `sys::ggml_log_level` is whatever bindgen found for the
+/// target, so the hook compiles on every OS and Windows keeps whisper's
+/// warnings and errors in the log too.
+unsafe extern "C" fn log_hook(level: sys::ggml_log_level, text: *const std::ffi::c_char, _user_data: *mut c_void) {
+    #[allow(clippy::unnecessary_cast)]
+    let level = level as u32;
     if text.is_null() {
         return;
     }

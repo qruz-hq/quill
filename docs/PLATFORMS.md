@@ -76,6 +76,8 @@ the other one starts with every setting sent again.
 | Reduce Motion, live | Notification | Re-read every 5 s | Re-read every 5 s |
 | Log file | `~/Library/Logs/Quill-app.log` | `%APPDATA%\Quill\logs\Quill-app.log` | `~/.config/Quill/logs/Quill-app.log` |
 | Local whisper | Metal | CPU | CPU |
+| Live text while speaking (local) | Yes | No: one pass at a time, greedy, all cores but one | Same as Windows |
+| Default speech model | Small (compressed) | Base, English (compressed) | Same as Windows |
 
 Why the shortcuts differ: a global Alt+letter on Windows and Linux takes that key
 away from every app's menus, and Ctrl+Alt is the same as AltGr on many keyboards

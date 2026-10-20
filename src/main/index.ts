@@ -204,6 +204,9 @@ function log(msg: string): void {
   try { appendFileSync((logPath ??= platform.logFile()), line) } catch { /* non-fatal */ }
   console.log(msg)
 }
+// Uncaught exceptions keep Electron's own dialog; a rejection would otherwise
+// only reach a console nobody sees in a packaged app.
+process.on('unhandledRejection', (reason) => log(`[crash] unhandled rejection: ${reason instanceof Error ? reason.stack ?? reason.message : String(reason)}`))
 
 type Settings = { model: ModelId; languages: string[]; duckEnabled: boolean; duckLevel: number; aiEnabled: boolean; aiModel: string; aiMinWords: number; aiDeadlineMs: number; aiFixMishearings: boolean; sttEngine: 'local' | 'cloud'; sttProvider: Provider; sttModel: string; sttStreaming: boolean; sttNoVerbatim: boolean; launchAtLogin: boolean; todoEdge: boolean; calSync: boolean; calId: string; holdKey: number; micUid: string; toggleShortcut: string; padShortcut: string; noteShortcut: string; skippedVersion: string; onboarded: boolean; helper: HelperKind }
 const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json')
@@ -211,8 +214,10 @@ const SETTINGS_PATH = (): string => join(app.getPath('userData'), 'settings.json
 // been tried; QUILL_HELPER overrides it). Windows and Linux always run 'rust'.
 // The shortcut defaults differ per OS, see platform.defaultShortcuts.
 // New installs start on the multilingual Small model, compressed (190 MB); it is
-// downloaded during setup. Existing installs keep whatever they chose.
-const DEFAULTS: Settings = { model: 'small-q5_1', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, launchAtLogin: false, todoEdge: true, calSync: false, calId: '', holdKey: 63, micUid: '', ...platform.defaultShortcuts, skippedVersion: '', onboarded: false, helper: 'swift' }
+// downloaded during setup. Existing installs keep whatever they chose. Windows
+// and Linux decode on the CPU, where Small keeps every core busy for seconds
+// per dictation, so they start on Base (English, compressed, 60 MB) instead.
+const DEFAULTS: Settings = { model: platform.isMac ? 'small-q5_1' : 'base.en-q5_1', languages: ['en'], duckEnabled: true, duckLevel: 15, aiEnabled: true, aiModel: 'gpt-4o-mini', aiMinWords: 5, aiDeadlineMs: 2500, aiFixMishearings: false, sttEngine: 'local', sttProvider: 'openai', sttModel: 'gpt-4o-mini-transcribe', sttStreaming: false, sttNoVerbatim: true, launchAtLogin: false, todoEdge: true, calSync: false, calId: '', holdKey: 63, micUid: '', ...platform.defaultShortcuts, skippedVersion: '', onboarded: false, helper: 'swift' }
 
 function loadSettings(): Settings {
   try {
@@ -1266,7 +1271,14 @@ app.whenReady().then(() => {
   // Windows and Linux: no menu bar. The hub is frameless, so the default menu
   // would only show up as a strip when Alt is pressed. macOS keeps its app menu.
   if (!platform.isMac) Menu.setApplicationMenu(null)
-  app.on('browser-window-created', (_, w) => optimizer.watchWindowShortcuts(w))
+  app.on('browser-window-created', (_, w) => {
+    optimizer.watchWindowShortcuts(w)
+    w.webContents.on('render-process-gone', (_e, d) => log(`[crash] ${w.webContents.getURL().split('/').pop()} renderer gone: ${d.reason} (exit code ${d.exitCode})`))
+    w.on('unresponsive', () => log(`[crash] ${w.webContents.getURL().split('/').pop()} window not responding`))
+  })
+  // The GPU, network and utility processes: a crash there blanks windows or
+  // ends the app with nothing in the log otherwise.
+  app.on('child-process-gone', (_e, d) => log(`[crash] ${d.type}${d.name ? ` (${d.name})` : ''} process gone: ${d.reason} (exit code ${d.exitCode})`))
 
   hubWindow = createHub()
   barWindow = createFlowBar()

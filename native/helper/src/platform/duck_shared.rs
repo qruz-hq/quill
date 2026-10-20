@@ -10,7 +10,8 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Duration;
 
 use quill_core::caps::Ducker;
 use quill_core::logln;
@@ -20,6 +21,16 @@ use serde_json::Value;
 
 /// At or below this the output counts as silent and is left alone.
 const SILENT: f32 = 0.001;
+
+/// Two volumes this close are the same setting.
+const SAME: f32 = 0.005;
+
+/// When a restored output is read again. Some devices take a volume change
+/// asynchronously and can apply the duck after the restore that followed it
+/// (seen on a SteelSeries Arctis 7P+ on Windows, after recordings of about a
+/// second): the output stays ducked and the next duck saves that as the
+/// volume, so it sinks a little more with every dictation.
+const RECHECK: [Duration; 3] = [Duration::from_millis(250), Duration::from_secs(1), Duration::from_secs(3)];
 
 /// The output volume of this OS. `Device` is whatever handle the OS uses; it is
 /// only ever held for the length of one call, a device is remembered by `uid`.
@@ -136,25 +147,58 @@ struct State {
     /// that dropped out mid-recording). Kept, in memory and on disk, and put
     /// back when the device returns, so it does not come back quiet.
     orphans: Vec<Ducked>,
+    /// What the current duck set each control to.
+    lowered: BTreeMap<u32, f32>,
+    /// The last restore: what was put back over what. Re-checked after a
+    /// restore, and read by the next duck.
+    last: Option<(Ducked, BTreeMap<u32, f32>)>,
+    /// Bumped by every duck and restore, so a re-check from an older one stops.
+    generation: u64,
 }
 
 /// The [`Ducker`] of every OS, over that OS's [`OutputVolume`].
 pub struct DuckCore<O: OutputVolume> {
-    out: O,
+    out: Arc<O>,
     file: PathBuf,
-    state: Mutex<State>,
+    state: Arc<Mutex<State>>,
+}
+
+/// Every exit path ends in `restore`, including the one a panic takes, so a
+/// poisoned lock is still used: the saved volumes in it are intact.
+fn lock(state: &Mutex<State>) -> MutexGuard<'_, State> {
+    state.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// After a restore: puts back any control the device has since moved back to
+/// its ducked value, as long as nothing has ducked or restored again.
+fn recheck<O: OutputVolume>(out: &O, state: &Mutex<State>, generation: u64) {
+    for delay in RECHECK {
+        std::thread::sleep(delay);
+        let state = lock(state);
+        if state.generation != generation {
+            return;
+        }
+        let Some((saved, lowered)) = &state.last else { return };
+        let Some(device) = out.find(&saved.uid) else { return };
+        for (&control, &value) in &saved.volumes {
+            let Some(&low) = lowered.get(&control) else { continue };
+            let now = out.volume(device, control);
+            if now.is_some_and(|now| (now - low).abs() < SAME && (now - value).abs() >= SAME) {
+                logln!("output went back to {:.0}% after the restore, set it to {:.0}% again", low * 100.0, value * 100.0);
+                out.set_volume(device, control, value);
+            }
+        }
+    }
 }
 
 impl<O: OutputVolume> DuckCore<O> {
     /// `file` is the duck state file (`paths::duck_state_file()`).
     pub fn new(out: O, file: PathBuf) -> Self {
-        Self { out, file, state: Mutex::new(State::default()) }
+        Self { out: Arc::new(out), file, state: Arc::new(Mutex::new(State::default())) }
     }
 
-    /// Every exit path ends in `restore`, including the one a panic takes, so
-    /// a poisoned lock is still used: the saved volumes in it are intact.
     fn lock(&self) -> MutexGuard<'_, State> {
-        self.state.lock().unwrap_or_else(|e| e.into_inner())
+        lock(&self.state)
     }
 
     /// Everything not yet restored, kept on disk. If the helper dies first,
@@ -190,7 +234,7 @@ impl<O: OutputVolume> DuckCore<O> {
     }
 }
 
-impl<O: OutputVolume> Ducker for DuckCore<O> {
+impl<O: OutputVolume + 'static> Ducker for DuckCore<O> {
     fn supported(&self) -> bool {
         true
     }
@@ -218,10 +262,24 @@ impl<O: OutputVolume> Ducker for DuckCore<O> {
         }
         let Some(device) = self.out.default_output() else { return };
         let Some(uid) = self.out.uid(device) else { return };
+        state.generation += 1;
+        let last = state.last.take().filter(|(saved, _)| saved.uid == uid);
         let mut volumes = BTreeMap::new();
         for control in self.out.controls(device) {
             if let Some(value) = self.out.volume(device, control).filter(|v| v.is_finite()) {
-                volumes.insert(control, value);
+                // Still at what the last duck set it to: the restore did not
+                // hold, so what to come back to is what that duck saved.
+                let before = last.as_ref().and_then(|(saved, lowered)| {
+                    let low = *lowered.get(&control)?;
+                    ((value - low).abs() < SAME).then(|| saved.volumes.get(&control).copied()).flatten()
+                });
+                if let Some(before) = before.filter(|b| (b - value).abs() >= SAME) {
+                    logln!("output was still ducked at {:.0}%, keeping {:.0}% as its volume", value * 100.0, before * 100.0);
+                    self.out.set_volume(device, control, before);
+                    volumes.insert(control, before);
+                } else {
+                    volumes.insert(control, value);
+                }
             }
         }
         let saved = Ducked { uid, volumes };
@@ -233,8 +291,9 @@ impl<O: OutputVolume> Ducker for DuckCore<O> {
         // leaves a file that restores the volume to what it already is.
         state.ducked = Some(saved.clone());
         self.persist(&state);
-        for (&control, &value) in &saved.volumes {
-            self.out.set_volume(device, control, value * level);
+        state.lowered = saved.volumes.iter().map(|(&control, &value)| (control, value * level)).collect();
+        for (&control, &value) in &state.lowered {
+            self.out.set_volume(device, control, value);
         }
         logln!(
             "ducked output {:.0}% -> {:.0}% on {} control(s)",
@@ -247,7 +306,15 @@ impl<O: OutputVolume> Ducker for DuckCore<O> {
     fn restore(&self) {
         let mut state = self.lock();
         let Some(saved) = state.ducked.take() else { return };
-        if !self.apply(&saved) {
+        let lowered = std::mem::take(&mut state.lowered);
+        state.generation += 1;
+        if self.apply(&saved) {
+            state.last = Some((saved, lowered));
+            let (out, shared, generation) = (Arc::clone(&self.out), Arc::clone(&self.state), state.generation);
+            let _ = std::thread::Builder::new()
+                .name("duck-recheck".into())
+                .spawn(move || recheck(&*out, &shared, generation));
+        } else {
             logln!("ducked device is gone, will restore its volume when it returns");
             state.orphans.retain(|o| o.uid != saved.uid);
             state.orphans.push(saved);
@@ -425,6 +492,49 @@ mod tests {
         assert!(close(out.get(speakers, 0), 0.4));
         ducker.restore();
         assert_eq!(out.get(speakers, 0), 0.8);
+    }
+
+    #[test]
+    fn a_device_that_applies_the_duck_after_the_restore_is_put_back() {
+        let out = FakeOut::default();
+        let headset = out.add("arctis", &[(0, 0.56)]);
+        let ducker = core(&out, &scratch());
+        ducker.duck(0.15);
+        ducker.restore();
+        // The headset applies the duck late, over the restore.
+        out.set(headset, 0, 0.56 * 0.15);
+        std::thread::sleep(RECHECK[0] + RECHECK[1] / 2);
+        assert_eq!(out.get(headset, 0), 0.56);
+    }
+
+    #[test]
+    fn a_restore_that_did_not_hold_does_not_lower_the_saved_volume() {
+        let out = FakeOut::default();
+        let headset = out.add("arctis", &[(0, 0.56)]);
+        let ducker = core(&out, &scratch());
+        ducker.duck(0.15);
+        ducker.restore();
+        out.set(headset, 0, 0.56 * 0.15);
+        // The next dictation starts before any re-check ran.
+        ducker.duck(0.15);
+        assert!(close(out.get(headset, 0), 0.56 * 0.15));
+        ducker.restore();
+        assert_eq!(out.get(headset, 0), 0.56);
+    }
+
+    #[test]
+    fn a_volume_the_user_chose_after_a_restore_is_kept() {
+        let out = FakeOut::default();
+        let speakers = out.add("spk", &[(0, 0.8)]);
+        let ducker = core(&out, &scratch());
+        ducker.duck(0.5);
+        ducker.restore();
+        out.set(speakers, 0, 0.3);
+        ducker.duck(0.5);
+        ducker.restore();
+        assert_eq!(out.get(speakers, 0), 0.3);
+        std::thread::sleep(RECHECK[0] * 2);
+        assert_eq!(out.get(speakers, 0), 0.3);
     }
 
     #[test]

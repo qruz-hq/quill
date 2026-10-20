@@ -130,11 +130,29 @@ fn main() {
     }
     // whisper.cpp is unusable unoptimised, so a debug build of the helper
     // still gets an optimised library (with symbols when asked for).
+    let build_type = if feature("force-debug") { "RelWithDebInfo" } else { "Release" };
+    config.define("CMAKE_BUILD_TYPE", build_type);
     if feature("force-debug") {
-        config.define("CMAKE_BUILD_TYPE", "RelWithDebInfo");
         config.cxxflag("-DWHISPER_DEBUG");
-    } else {
-        config.define("CMAKE_BUILD_TYPE", "Release");
+    }
+    // On MSVC the cmake crate replaces CMAKE_<LANG>_FLAGS_<CONFIG> with cc's
+    // flags minus every /O switch, which also drops CMake's /DNDEBUG: the
+    // library came out unoptimised (every core flat out for seconds per pass)
+    // with ggml's debug asserts on, and its `!isnan(x)` check in GELU aborted
+    // the helper mid-pass. Setting the variables ourselves stops the override.
+    // The CRT has to match the Rust side's, as cc would pick it: static (/MT)
+    // when built with `+crt-static`, which scripts/build-helper.ts sets.
+    if target.contains("msvc") {
+        let features = env::var("CARGO_CFG_TARGET_FEATURE").unwrap_or_default();
+        let static_crt = features.split(',').any(|f| f == "crt-static");
+        let crt = if static_crt { "/MT" } else { "/MD" };
+        let opt = if build_type == "Release" { "/O2 /Ob2 /DNDEBUG" } else { "/Zi /O2 /Ob1 /DNDEBUG" };
+        let flags = format!("{crt} {opt}");
+        let upper = build_type.to_uppercase();
+        config.define(format!("CMAKE_C_FLAGS_{upper}"), &flags);
+        config.define(format!("CMAKE_CXX_FLAGS_{upper}"), &flags);
+        // CMake 3.15+ picks the runtime from this too; keep the two in step.
+        config.define("CMAKE_MSVC_RUNTIME_LIBRARY", if static_crt { "MultiThreaded" } else { "MultiThreadedDLL" });
     }
     // Any WHISPER_, GGML_ or CMAKE_ variable in the environment goes to cmake.
     for (key, value) in env::vars() {

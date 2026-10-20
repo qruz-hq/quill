@@ -32,6 +32,10 @@ export type HotkeyIntent = 'start' | 'stop' | 'cancel'
 /** What a stop or a retry comes back with. `error` is the helper's own reason for an empty text. */
 export type Final = { text: string; error?: string }
 
+/** How long a stop or retry waits for the helper, plus twice the recording's length. */
+const STOP_TIMEOUT_MS = 45_000
+const TOO_SLOW = 'Transcribing took too long on this computer, so it was stopped. Try a smaller speech model in Settings.'
+
 /** The helper died before it could answer a stop or a retry. */
 export class HelperGone extends Error {
   constructor() {
@@ -386,8 +390,12 @@ export class SttEngine extends EventEmitter {
   start(): void {
     const proc = this.ensureProcess()
     this.capturing = true
+    this.startedAt = Date.now()
     proc.stdin.write('start\n')
   }
+  /** When the running recording started, and how long the last one lasted (for the stop timeout). */
+  private startedAt = 0
+  private recordedMs = 0
 
   /**
    * Ends the recording and resolves with its transcript. `tag` comes back to
@@ -396,11 +404,14 @@ export class SttEngine extends EventEmitter {
    */
   stop(tag?: unknown): Promise<Final> {
     this.capturing = false
+    if (this.startedAt) this.recordedMs = Date.now() - this.startedAt
+    this.startedAt = 0
     return this.awaitFinal('stop', tag)
   }
 
   cancel(): void {
     this.capturing = false
+    this.startedAt = 0
     this.proc?.stdin.write('cancel\n')
   }
 
@@ -415,9 +426,23 @@ export class SttEngine extends EventEmitter {
   private awaitFinal(command: 'stop' | 'retry', tag: unknown): Promise<Final> {
     if (!this.proc) return Promise.resolve({ text: '' })
     const id = String(this.nextId++)
+    // A long recording takes longer to transcribe, on a CPU most of all.
+    const limitMs = STOP_TIMEOUT_MS + 2 * this.recordedMs
     return new Promise((resolve, reject) => {
-      // A helper that never answers: give up on this one only.
-      const timer = setTimeout(() => this.settle(id, { text: '' }), 45_000)
+      const timer = setTimeout(() => {
+        // The app is uploading this one itself: only the wait ends.
+        if (this.uploads.has(id)) { this.settle(id, { text: '' }); return }
+        const proc = this.proc
+        this.emit('log', `no answer to ${command} ${id} after ${Math.round(limitMs / 1000)}s, restarting the helper`)
+        this.settle(id, { text: '', error: TOO_SLOW })
+        // A pass that never ends keeps every core busy after the app has given
+        // up on it. Ending its helper is the only way to stop it; a fresh one
+        // starts with every setting sent again (onSpawn).
+        if (proc && proc === this.proc && this.waiting.size === 0) {
+          this.dispose()
+          this.ensureProcess()
+        }
+      }, limitMs)
       this.waiting.set(id, {
         tag,
         settle: (r) => {

@@ -48,8 +48,13 @@ impl Sampling {
     }
 }
 
-pub fn sampling(mode: DecodeMode) -> Sampling {
+/// `cpu`: the build decodes on the processor (Windows and Linux without
+/// Vulkan). Five beams there cost several times a greedy pass at full load on
+/// every core, so a final is greedy, keeping `best_of` for the temperature
+/// retries.
+pub fn sampling(mode: DecodeMode, cpu: bool) -> Sampling {
     match mode {
+        DecodeMode::Final if cpu => Sampling { beam_size: 1, best_of: BEST_OF },
         // No `-bs`, no `-bo`: the defaults.
         DecodeMode::Final => Sampling { beam_size: BEAM_SIZE, best_of: BEST_OF },
         // `-bo 1 -bs 1`.
@@ -59,9 +64,11 @@ pub fn sampling(mode: DecodeMode) -> Sampling {
 
 /// The reference passes 8 whatever the machine. Asking for more threads than
 /// there are cores only makes them fight, so a smaller machine gets its own
-/// core count.
-pub fn threads(cores: usize) -> usize {
-    cores.clamp(1, MAX_THREADS)
+/// core count. On a CPU build one core is left to the rest of the computer,
+/// so the app and the foreground window stay responsive during a pass.
+pub fn threads(cores: usize, cpu: bool) -> usize {
+    let usable = if cpu { cores.saturating_sub(1) } else { cores };
+    usable.clamp(1, MAX_THREADS)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,20 +150,37 @@ mod tests {
 
     #[test]
     fn final_is_beam_search_and_partial_is_greedy() {
-        let last = sampling(DecodeMode::Final);
+        let last = sampling(DecodeMode::Final, false);
         assert_eq!(last, Sampling { beam_size: 5, best_of: 5 });
         assert!(last.beam_search());
-        let partial = sampling(DecodeMode::Partial);
+        let partial = sampling(DecodeMode::Partial, false);
         assert_eq!(partial, Sampling { beam_size: 1, best_of: 1 });
         assert!(!partial.beam_search());
     }
 
     #[test]
+    fn on_a_cpu_build_the_final_is_greedy_too() {
+        let last = sampling(DecodeMode::Final, true);
+        assert_eq!(last, Sampling { beam_size: 1, best_of: 5 });
+        assert!(!last.beam_search());
+        assert_eq!(sampling(DecodeMode::Partial, true), Sampling { beam_size: 1, best_of: 1 });
+    }
+
+    #[test]
     fn eight_threads_unless_the_machine_has_fewer() {
-        assert_eq!(threads(18), 8);
-        assert_eq!(threads(8), 8);
-        assert_eq!(threads(4), 4);
-        assert_eq!(threads(0), 1);
+        assert_eq!(threads(18, false), 8);
+        assert_eq!(threads(8, false), 8);
+        assert_eq!(threads(4, false), 4);
+        assert_eq!(threads(0, false), 1);
+    }
+
+    #[test]
+    fn a_cpu_build_leaves_one_core_free() {
+        assert_eq!(threads(18, true), 8);
+        assert_eq!(threads(8, true), 7);
+        assert_eq!(threads(4, true), 3);
+        assert_eq!(threads(1, true), 1);
+        assert_eq!(threads(0, true), 1);
     }
 
     #[test]
